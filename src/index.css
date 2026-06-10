@@ -1,43 +1,40 @@
 @import "tailwindcss";
 
 /*
- * PLAN DEL HAMBRE — sistema de diseño brutalista
+ * PLAN DEL HAMBRE — sistema de diseño "soft UI"
+ * (inspirado en Custom Workout App de Fireart: fondo lavanda claro, cards muy
+ * redondeadas, sombras difusas de color, violeta como primario y coral de acento)
  *
- * Reglas del sistema:
- *  - Una sola familia tipográfica (monospace), titulares en mayúsculas.
- *  - Fondo papel, tinta negra, un color de acento agresivo por persona.
- *  - Bordes negros gruesos, cero border-radius, sombras duras desplazadas.
- *  - Los botones se "hunden" al pulsar (translate + sombra a 0).
+ * Nota: los nombres de tokens y utilidades conservan los del sistema anterior
+ * (paper/ink, border-brutal, shadow-brutal...) — cambiar aquí los valores
+ * reestiliza toda la app sin tocar las pantallas.
  */
 
 @theme {
-  --font-sans: "Space Mono", "IBM Plex Mono", ui-monospace, monospace;
-  --font-mono: "Space Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Manrope", ui-sans-serif, system-ui, sans-serif;
 
-  --color-paper: #f4f1ea;
-  --color-ink: #000000;
-  --color-person-a: #ff3b00;
-  --color-person-b: #0033ff;
-  --color-warn: #ffd500;
-  --color-ok: #00a347;
+  --color-paper: #f6f5fb;   /* lavanda-blanco de fondo */
+  --color-ink: #221c44;     /* azul noche para texto y chips oscuros */
+  --color-person-a: #ff7a59; /* coral */
+  --color-person-b: #7c5cfc; /* violeta */
+  --color-warn: #ffb648;
+  --color-ok: #2dd4a8;
 
-  --radius-*: initial; /* sin esquinas redondeadas en todo el proyecto */
-
-  --shadow-brutal: 4px 4px 0 0 #000000;
-  --shadow-brutal-sm: 2px 2px 0 0 #000000;
-  --shadow-brutal-lg: 8px 8px 0 0 #000000;
+  --shadow-brutal: 0 16px 36px -12px rgb(124 92 252 / 0.22);
+  --shadow-brutal-sm: 0 8px 20px -8px rgb(34 28 68 / 0.16);
+  --shadow-brutal-lg: 0 24px 56px -16px rgb(124 92 252 / 0.3);
 }
 
 @layer base {
   body {
     background-color: var(--color-paper);
     color: var(--color-ink);
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
   }
 
   h1, h2, h3 {
-    text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: -0.02em;
   }
 
@@ -45,30 +42,42 @@
   [data-numeric], table {
     font-variant-numeric: tabular-nums;
   }
+
+  /* suaviza globalmente los bordes "de tinta" heredados (rejillas, chips) */
+  :where(.border-ink) {
+    border-color: rgb(34 28 68 / 0.12);
+  }
+
+  /* esquinas amables en todo lo interactivo sin tocar cada pantalla */
+  :where(button, input, select, textarea) {
+    border-radius: 0.875rem;
+  }
 }
 
 @utility border-brutal {
-  border: 3px solid var(--color-ink);
+  border: 1px solid rgb(34 28 68 / 0.06);
+  border-radius: 1.5rem;
 }
 
 @utility border-brutal-thin {
-  border: 2px solid var(--color-ink);
+  border: 1px solid rgb(34 28 68 / 0.1);
+  border-radius: 0.875rem;
 }
 
 @utility press-brutal {
-  transition: transform 80ms ease, box-shadow 80ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease;
   &:active {
-    transform: translate(4px, 4px);
-    box-shadow: 0 0 0 0 var(--color-ink);
+    transform: scale(0.97);
+    box-shadow: none;
   }
 }
 
 @utility blink-brutal {
-  animation: blink-brutal 1s steps(2, start) infinite;
+  animation: blink-brutal 1.4s ease-in-out infinite;
 }
 
 @keyframes blink-brutal {
-  to {
-    visibility: hidden;
+  50% {
+    opacity: 0.35;
   }
 }

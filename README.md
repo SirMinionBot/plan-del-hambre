@@ -3,7 +3,7 @@
 Qué comemos esta semana, sin discutir. Planificador semanal de comidas para una
 pareja: hogar compartido, gustos y vetos individuales, recomendador heurístico
 explicable, lista de la compra en tiempo real y despensa con caducidades.
-Diseño brutalista sin disculpas.
+Soft UI claro: violeta + coral sobre lavanda, cards redondeadas y sombras suaves.
 
 React 19 + TypeScript + Vite + Tailwind 4 + Supabase. PWA instalable con Web Push.
 

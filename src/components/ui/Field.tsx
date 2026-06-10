@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
 
 const fieldClasses =
-  'w-full border-brutal-thin bg-white px-3 py-2 focus:outline-none focus:bg-warn/20'
+  'w-full border-brutal-thin bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-person-b/40'
 
 interface LabelledProps {
   label?: string

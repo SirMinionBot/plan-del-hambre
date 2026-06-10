@@ -19,15 +19,20 @@
 - RLS por membresía de hogar (`is_household_member`). Las recetas/plantillas
   con `household_id null` son catálogo global de solo lectura: editar = fork.
 
-## Sistema de diseño (brutalista — no negociable)
+## Sistema de diseño (soft UI — estilo Fireart "Custom Workout App")
 
-- Solo Space Mono; titulares en mayúsculas; cifras tabulares (`data-numeric`).
-- Cero `border-radius`, cero sombras difusas. Utilidades: `border-brutal`,
-  `border-brutal-thin`, `shadow-brutal[-sm|-lg]`, `press-brutal`, `blink-brutal`.
-- Colores: `paper`, `ink`, `person-a` (rojo), `person-b` (azul), `warn`, `ok`.
-  Todo dato de una persona lleva su color de acento.
-- Estados tipográficos: errores en bloque negro/texto blanco, loading
-  `CARGANDO...` parpadeante, vacíos en mayúsculas.
+- Manrope para todo; cifras tabulares (`data-numeric`). Sin mayúsculas en
+  titulares (los micro-labels con clase `uppercase` actúan de overline).
+- Fondo lavanda (`paper #f6f5fb`), texto azul noche (`ink #221c44`), primario
+  violeta (`person-b #7c5cfc`, también acento de la persona B), coral
+  (`person-a #ff7a59`, persona A y peligro). Todo dato de una persona lleva
+  su color.
+- Cards muy redondeadas con sombras difusas de color. Las utilidades
+  HEREDAN LOS NOMBRES del sistema brutalista anterior: `border-brutal`
+  (= card radius 1.5rem + borde sutil), `shadow-brutal[-sm|-lg]` (sombras
+  suaves violetas), `press-brutal` (scale al pulsar), `blink-brutal` (pulse).
+  Cambiar la estética = tocar `src/index.css`, no las pantallas.
+- Botón primario: degradado violeta con texto blanco (`variant="primary"`).
 
 ## Seeds SQL
 

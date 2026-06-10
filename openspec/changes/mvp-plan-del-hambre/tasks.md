@@ -1,5 +1,9 @@
 # Tasks: mvp-plan-del-hambre
 
+## 14. Iteración 4 (rediseño visual)
+
+- [x] 14.1 Migración del sistema de diseño brutalista a soft UI (referencia: Fireart "Custom Workout App"): tokens y utilidades redefinidos en index.css conservando nombres, Manrope, paleta lavanda/violeta/coral, cards redondeadas con sombra difusa, botón primario degradado, nav tipo píldora, iconos PWA y manifest actualizados, spec design-system reescrita
+
 ## 1. Cimientos (parcialmente hecho durante el descubrimiento)
 
 - [x] 1.1 Scaffold Vite + React + TS con pnpm, Tailwind 4, react-router-dom y @supabase/supabase-js

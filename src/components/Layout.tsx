@@ -56,8 +56,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           end={item.to === '/'}
           onClick={onNavigate}
           className={({ isActive }) =>
-            `border-b-2 border-ink px-4 py-3 font-bold uppercase last:border-b-0 ${
-              isActive ? 'bg-ink text-paper' : 'bg-white hover:bg-warn'
+            `m-1 rounded-xl px-4 py-2.5 font-bold ${
+              isActive ? 'bg-person-b text-white shadow-brutal-sm' : 'text-ink/70 hover:bg-person-b/10'
             }`
           }
         >
@@ -100,11 +100,13 @@ export function Layout() {
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-3 pb-12">
-      <header className="flex items-center justify-between gap-2 border-b-4 border-ink py-4">
-        <h1 className="text-2xl sm:text-4xl">Plan del hambre</h1>
+      <header className="flex items-center justify-between gap-2 py-5">
+        <h1 className="text-2xl sm:text-4xl">
+          Plan <span className="text-person-b">del hambre</span>
+        </h1>
         <button
           onClick={() => setOpen(true)}
-          className="border-brutal-thin shadow-brutal-sm press-brutal bg-warn px-3 py-2 font-bold uppercase lg:hidden"
+          className="press-brutal shadow-brutal-sm rounded-2xl bg-white px-4 py-2.5 font-bold text-person-b lg:hidden"
           aria-label="Abrir menú"
         >
           ☰ Menú
@@ -121,12 +123,12 @@ export function Layout() {
         {open && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
             <div className="absolute inset-0 bg-ink/60" onClick={() => setOpen(false)} />
-            <div className="absolute inset-y-0 left-0 flex w-64 flex-col gap-3 border-r-4 border-ink bg-paper p-4">
+            <div className="absolute inset-y-0 left-0 flex w-64 flex-col gap-3 rounded-r-3xl bg-paper p-4 shadow-brutal-lg">
               <div className="flex items-center justify-between">
-                <span className="font-bold uppercase">Menú</span>
+                <span className="font-bold">Menú</span>
                 <button
                   onClick={() => setOpen(false)}
-                  className="border-brutal-thin shadow-brutal-sm press-brutal bg-white px-3 py-1 font-bold"
+                  className="press-brutal shadow-brutal-sm rounded-xl bg-white px-3 py-1 font-bold"
                   aria-label="Cerrar menú"
                 >
                   ✕
