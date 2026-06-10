@@ -27,6 +27,16 @@ registerRoute(
   }),
 )
 
+// OCR local (tesseract): worker, wasm y modelo de idioma quedan cacheados
+// tras el primer escaneo → los siguientes funcionan sin internet.
+registerRoute(
+  ({ url }) => url.hostname === 'cdn.jsdelivr.net' || url.hostname === 'tessdata.projectnaptha.com',
+  new CacheFirst({
+    cacheName: 'ocr-assets',
+    plugins: [new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 365 * 24 * 3600 })],
+  }),
+)
+
 // Fuentes de Google: caché primero (no cambian)
 registerRoute(
   ({ url }) => url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com',

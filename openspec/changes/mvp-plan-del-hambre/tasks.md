@@ -75,7 +75,7 @@
 
 - [x] 13.1 Migración 009: weekly_budget, actual_cost, typically_frozen, telegram_links + telegram_link_code
 - [x] 13.2 Bot de Telegram (Edge Function `telegram-bot`): vinculación por código, hoy/mañana/compra/añade/marca/despensa, secret token, filtrado por hogar
-- [x] 13.3 Escáner de tickets (Edge Function `parse-ticket` con Claude visión + structured outputs): productos a despensa con caducidad estimada y total como coste real de la semana
+- [x] 13.3 Escáner de tickets 100% LOCAL (tesseract.js en el dispositivo + parser heurístico + matching con el catálogo): productos a despensa con caducidad estimada por pasillo, nombres editables, y total como coste real de la semana; sin proveedores externos, offline tras el primer uso
 - [x] 13.4 Push "saca del congelador" (type defrost en send-push + cron 20:00 + flag typically_frozen)
 - [x] 13.5 Presupuesto semanal del hogar (perfil) + comparación en compra + modo "semana barata" en el planificador (componente de coste en el recomendador, 12/12 tests)
 - [x] 13.6 Atajos PWA (long-press del icono → Compra / Planificar / Despensa)

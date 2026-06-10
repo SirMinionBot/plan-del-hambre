@@ -6,18 +6,8 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
 import { Picker } from '../components/ui/Picker'
 import { Banner, EmptyState, Loading } from '../components/ui/Banner'
+import { scanTicketLocally, type TicketResult } from '../lib/ticketOcr'
 import type { Ingredient, PantryItem } from '../types/db'
-
-interface TicketItem {
-  name: string
-  perishable: boolean
-  days_to_expiry_guess: number | null
-}
-
-interface TicketResult {
-  items: TicketItem[]
-  total: number | null
-}
 
 function daysLeft(expiresOn: string): number {
   const today = new Date()
@@ -31,19 +21,22 @@ export function PantryPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [name, setName] = useState('')
   const [expires, setExpires] = useState('')
-  const [scanning, setScanning] = useState(false)
+  const [scanning, setScanning] = useState<string | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   const [ticket, setTicket] = useState<{ result: TicketResult; selected: Record<number, string | null> } | null>(null)
+  const [categories, setCategories] = useState<Map<number, string>>(new Map())
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     if (!household) return
-    const [{ data: p }, { data: ing }] = await Promise.all([
+    const [{ data: p }, { data: ing }, { data: cats }] = await Promise.all([
       supabase.from('pantry_items').select('*').eq('household_id', household.id).order('expires_on', { nullsFirst: false }),
       supabase.from('ingredients').select('*').order('name'),
+      supabase.from('ingredient_categories').select('id, name'),
     ])
     setItems(p ?? [])
     setIngredients(ing ?? [])
+    setCategories(new Map((cats ?? []).map((c) => [c.id, c.name])))
   }, [household])
 
   useEffect(() => {
@@ -69,22 +62,17 @@ export function PantryPage() {
     void load()
   }
 
-  /** Foto del ticket → Claude extrae productos y total → confirmación. */
+  /** Foto del ticket → OCR local en el dispositivo → confirmación. */
   async function scanTicket(file: File) {
-    setScanning(true)
+    setScanning('Preparando OCR...')
     setScanError(null)
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve((reader.result as string).split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      const { data, error } = await supabase.functions.invoke('parse-ticket', {
-        body: { image: base64, media_type: file.type || 'image/jpeg' },
-      })
-      if (error) throw new Error(error.message)
-      const result = data as TicketResult
+      const result = await scanTicketLocally(file, ingredients, categories, (pct) =>
+        setScanning(`Leyendo ticket... ${pct}%`),
+      )
+      if (result.items.length === 0 && result.total === null) {
+        throw new Error('No se reconoció nada legible — prueba con más luz y el ticket plano')
+      }
       // preselecciona perecederos con su caducidad estimada
       const selected: Record<number, string | null> = {}
       result.items.forEach((item, i) => {
@@ -96,7 +84,7 @@ export function PantryPage() {
     } catch (e) {
       setScanError(e instanceof Error ? e.message : 'Error al escanear')
     }
-    setScanning(false)
+    setScanning(null)
   }
 
   async function confirmTicket() {
@@ -107,7 +95,7 @@ export function PantryPage() {
       return {
         household_id: household!.id,
         name: item.name.toLowerCase(),
-        ingredient_id: ing?.id ?? null,
+        ingredient_id: item.ingredient_id ?? ing?.id ?? null,
         expires_on: expiresOn,
       }
     })
@@ -141,8 +129,8 @@ export function PantryPage() {
             e.target.value = ''
           }}
         />
-        <Button variant="primary" onClick={() => fileRef.current?.click()} disabled={scanning}>
-          {scanning ? 'Leyendo ticket...' : '📷 Escanear ticket'}
+        <Button variant="primary" onClick={() => fileRef.current?.click()} disabled={scanning !== null}>
+          {scanning ?? '📷 Escanear ticket'}
         </Button>
       </div>
       <p className="text-xs font-bold uppercase opacity-60">
@@ -174,7 +162,14 @@ export function PantryPage() {
                       }}
                       className={`size-5 shrink-0 border-2 border-ink ${checked ? 'bg-ink' : 'bg-white'}`}
                     />
-                    <span className="flex-1 text-sm font-bold">{item.name}</span>
+                    <Input
+                      value={item.name}
+                      onChange={(e) => {
+                        const items = ticket.result.items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x))
+                        setTicket({ ...ticket, result: { ...ticket.result, items } })
+                      }}
+                      className="flex-1 text-sm"
+                    />
                     {checked && (
                       <Input
                         type="date"
