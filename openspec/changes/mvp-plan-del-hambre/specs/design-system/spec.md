@@ -14,12 +14,19 @@ La UI SHALL usar exclusivamente los tokens del sistema: tipografía Manrope, fon
 - **WHEN** un dato pertenece a un miembro concreto (ración, cocinero, rating, macro)
 - **THEN** se muestra con el color de acento de esa persona (coral o violeta), sin necesidad de icono o etiqueta adicional
 
-### Requirement: Cards redondeadas con sombra difusa
-Las superficies SHALL ser cards con esquinas muy redondeadas (≥ 0.875rem; 1.5rem en cards principales) y sombras difusas con tinte violeta en lugar de bordes duros. Los elementos interactivos SHALL responder al pulsarse con una reducción sutil de escala.
+### Requirement: Superficies planas redondeadas
+Las superficies SHALL ser cards planas con esquinas redondeadas (≥ 0.75rem; 1.25rem en cards principales), separadas por contraste de color sólido y bordes finos — sin sombras apreciables ni degradados. Los elementos interactivos SHALL responder al pulsarse con una reducción sutil de escala.
 
 #### Scenario: Pulsación de botón
 - **WHEN** el usuario mantiene pulsado un botón
-- **THEN** el botón se encoge ligeramente (scale ~0.97) y pierde la sombra, volviendo al soltar
+- **THEN** el botón se encoge ligeramente (scale ~0.97), volviendo al soltar
+
+### Requirement: Navegación intuitiva por pestañas
+En móvil la navegación SHALL ser una barra inferior fija con las cuatro secciones de uso diario (Hoy, Semana, Recetas, Compra) con icono + etiqueta y estado activo en violeta, más una pestaña "Más" que abre el resto de secciones. En pantalla grande SHALL ser una barra lateral persistente.
+
+#### Scenario: Cambiar de sección con el pulgar
+- **WHEN** el usuario toca "Compra" en la barra inferior
+- **THEN** navega a la lista de la compra sin pasos intermedios y la pestaña queda marcada en violeta
 
 ### Requirement: Reestilado centralizado
 El sistema SHALL poder reestilarse por completo editando los tokens y utilidades de `src/index.css` (los nombres `paper/ink/person-a/person-b`, `border-brutal*`, `shadow-brutal*`, `press-brutal`, `blink-brutal` son estables) sin modificar las pantallas.

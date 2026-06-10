@@ -16,6 +16,14 @@ const NAV = [
   { to: '/perfil', label: 'Perfil' },
 ]
 
+// pestañas inferiores (móvil): lo de uso diario a un pulgar de distancia
+const TABS = [
+  { to: '/', label: 'Hoy', icon: '🍽️' },
+  { to: '/calendario', label: 'Semana', icon: '📅' },
+  { to: '/recetas', label: 'Recetas', icon: '📖' },
+  { to: '/compra', label: 'Compra', icon: '🛒' },
+]
+
 function formatDay(date: string) {
   return new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long' }).toUpperCase()
 }
@@ -104,13 +112,6 @@ export function Layout() {
         <h1 className="text-2xl sm:text-4xl">
           Plan <span className="text-person-b">del hambre</span>
         </h1>
-        <button
-          onClick={() => setOpen(true)}
-          className="press-brutal shadow-brutal-sm rounded-2xl bg-white px-4 py-2.5 font-bold text-person-b lg:hidden"
-          aria-label="Abrir menú"
-        >
-          ☰ Menú
-        </button>
       </header>
 
       <div className="mt-4 lg:grid lg:grid-cols-[13rem_1fr] lg:items-start lg:gap-6">
@@ -139,12 +140,39 @@ export function Layout() {
           </div>
         )}
 
-        <main className="flex min-w-0 flex-col gap-4">
+        <main className="flex min-w-0 flex-col gap-4 pb-24 lg:pb-0">
           <OfflineBanner />
           <ExpiryBanner />
           <Outlet />
         </main>
       </div>
+
+      {/* barra de pestañas inferior (solo móvil): plano, etiquetas claras */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-ink/10 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        {TABS.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end={tab.to === '/'}
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${
+                isActive ? 'text-person-b' : 'text-ink/45'
+              }`
+            }
+          >
+            <span className="text-xl leading-none">{tab.icon}</span>
+            {tab.label}
+          </NavLink>
+        ))}
+        <button
+          onClick={() => setOpen(true)}
+          className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold text-ink/45"
+          aria-label="Más secciones"
+        >
+          <span className="text-xl leading-none">⋯</span>
+          Más
+        </button>
+      </nav>
     </div>
   )
 }

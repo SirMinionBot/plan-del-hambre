@@ -2,6 +2,7 @@
 
 ## 14. Iteración 4 (rediseño visual)
 
+- [x] 14.2 Brief "flat + navegación intuitiva": sombras a hairline, primario sólido (sin degradado), y barra de pestañas inferior en móvil (Hoy/Semana/Recetas/Compra + Más→drawer) con safe-area; spec design-system actualizada
 - [x] 14.1 Migración del sistema de diseño brutalista a soft UI (referencia: Fireart "Custom Workout App"): tokens y utilidades redefinidos en index.css conservando nombres, Manrope, paleta lavanda/violeta/coral, cards redondeadas con sombra difusa, botón primario degradado, nav tipo píldora, iconos PWA y manifest actualizados, spec design-system reescrita
 
 ## 1. Cimientos (parcialmente hecho durante el descubrimiento)

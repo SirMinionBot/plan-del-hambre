@@ -21,9 +21,10 @@
   --color-warn: #ffb648;
   --color-ok: #2dd4a8;
 
-  --shadow-brutal: 0 16px 36px -12px rgb(124 92 252 / 0.22);
-  --shadow-brutal-sm: 0 8px 20px -8px rgb(34 28 68 / 0.16);
-  --shadow-brutal-lg: 0 24px 56px -16px rgb(124 92 252 / 0.3);
+  /* diseño plano: capas por contraste de color, no por sombras */
+  --shadow-brutal: 0 1px 2px rgb(34 28 68 / 0.05);
+  --shadow-brutal-sm: 0 1px 2px rgb(34 28 68 / 0.04);
+  --shadow-brutal-lg: 0 2px 4px rgb(34 28 68 / 0.06);
 }
 
 @layer base {
@@ -55,13 +56,13 @@
 }
 
 @utility border-brutal {
-  border: 1px solid rgb(34 28 68 / 0.06);
-  border-radius: 1.5rem;
+  border: 1px solid rgb(34 28 68 / 0.08);
+  border-radius: 1.25rem;
 }
 
 @utility border-brutal-thin {
-  border: 1px solid rgb(34 28 68 / 0.1);
-  border-radius: 0.875rem;
+  border: 1px solid rgb(34 28 68 / 0.12);
+  border-radius: 0.75rem;
 }
 
 @utility press-brutal {

@@ -4,8 +4,7 @@ type Variant = 'default' | 'primary' | 'danger' | 'ghost'
 
 const variantClasses: Record<Variant, string> = {
   default: 'border-brutal-thin shadow-brutal-sm press-brutal bg-white text-ink',
-  primary:
-    'press-brutal bg-gradient-to-r from-person-b to-[#9d7bff] text-white shadow-brutal',
+  primary: 'press-brutal bg-person-b text-white',
   danger: 'press-brutal bg-person-a text-white shadow-brutal-sm',
   ghost: 'text-person-b underline underline-offset-4',
 }
