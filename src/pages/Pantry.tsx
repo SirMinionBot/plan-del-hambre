@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useHousehold } from '../hooks/useHousehold'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
+import { Picker } from '../components/ui/Picker'
 import { EmptyState, Loading } from '../components/ui/Banner'
 import type { Ingredient, PantryItem } from '../types/db'
 
@@ -62,14 +63,18 @@ export function PantryPage() {
       </p>
 
       <form onSubmit={add} className="border-brutal shadow-brutal flex flex-wrap items-end gap-2 bg-white p-4">
-        <Input label="Qué" list="pantry-ingredients" value={name} onChange={(e) => setName(e.target.value)} required className="max-w-56" />
-        <datalist id="pantry-ingredients">
-          {ingredients.map((i) => (
-            <option key={i.id} value={i.name} />
-          ))}
-        </datalist>
+        <div className="w-full max-w-56">
+          <Picker
+            label="Qué"
+            value={name}
+            placeholder="elegir o escribir..."
+            items={ingredients.map((i) => ({ id: String(i.id), label: i.name }))}
+            onSelect={(id) => setName(ingredients.find((i) => String(i.id) === id)?.name ?? '')}
+            onFreeText={(text) => setName(text)}
+          />
+        </div>
         <Input label="Caduca" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} className="max-w-44" />
-        <Button variant="primary" type="submit">
+        <Button variant="primary" type="submit" disabled={!name}>
           Añadir
         </Button>
       </form>

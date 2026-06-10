@@ -73,5 +73,6 @@
 
 ## 11. Extras
 
+- [x] 11.3 Picker buscable a pantalla completa (filtro sin tildes, texto libre opcional) en lugar de select/datalist para recetas e ingredientes: SlotEditor (receta + divergentes), RecipeForm (con unidad por defecto), exclusiones del perfil y despensa
 - [x] 11.1 Importador Spoonacular detrás de `VITE_SPOONACULAR_KEY` (buscar, convertir, guardar como receta del hogar `importada`)
 - [ ] 11.2 Verificación final: `pnpm build` ✓, tests ✓, migraciones aplicadas en producción ✓ (200 ing / 250 recetas / 4 plantillas), RLS ✓, desplegado en GitHub Pages ✓ — falta lighthouse PWA y prueba manual desde el móvil (crear hogar, invitar, planificar)

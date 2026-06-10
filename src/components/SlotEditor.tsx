@@ -5,6 +5,7 @@ import type { WeekData } from '../hooks/useWeekData'
 import { Button } from './ui/Button'
 import { Input, Select } from './ui/Field'
 import { Banner } from './ui/Banner'
+import { Picker, type PickerItem } from './ui/Picker'
 import type { MealEntry, MealEntryType, MealSlot, Recipe } from '../types/db'
 
 const TYPES: MealEntryType[] = ['normal', 'fuera', 'cheat', 'evento', 'sobras']
@@ -28,7 +29,7 @@ export function SlotEditor({
   onClose: (changed: boolean) => void
 }) {
   const { household, me, partner } = useHousehold()
-  const [recipes, setRecipes] = useState<Pick<Recipe, 'id' | 'name'>[]>([])
+  const [recipes, setRecipes] = useState<Pick<Recipe, 'id' | 'name' | 'prep_minutes' | 'cook_minutes'>[]>([])
   const [type, setType] = useState<MealEntryType>(entry?.entry_type ?? 'normal')
   const [recipeId, setRecipeId] = useState<string>(entry?.recipe_id ?? '')
   const [cook, setCook] = useState<string>(entry?.cook_user_id ?? '')
@@ -43,10 +44,17 @@ export function SlotEditor({
   useEffect(() => {
     supabase
       .from('recipes')
-      .select('id, name')
+      .select('id, name, prep_minutes, cook_minutes')
       .order('name')
       .then(({ data }) => setRecipes(data ?? []))
   }, [])
+
+  const recipeItems: PickerItem[] = recipes.map((r) => ({
+    id: r.id,
+    label: r.name,
+    sublabel: `${r.prep_minutes + r.cook_minutes} min`,
+  }))
+  const recipeName = (id: string | null) => recipes.find((r) => r.id === id)?.name ?? ''
 
   useEffect(() => {
     const initial: Record<string, MemberRow> = {}
@@ -122,14 +130,14 @@ export function SlotEditor({
 
         {(type === 'normal' || type === 'sobras') && (
           <>
-            <Select label="Receta" value={recipeId} onChange={(e) => setRecipeId(e.target.value)}>
-              <option value="">— sin receta —</option>
-              {recipes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </Select>
+            <Picker
+              label="Receta"
+              value={recipeName(recipeId || null)}
+              placeholder="elegir receta..."
+              items={recipeItems}
+              clearLabel="— sin receta —"
+              onSelect={(id) => setRecipeId(id ?? '')}
+            />
 
             <Select label="Cocina" value={cook} onChange={(e) => setCook(e.target.value)}>
               <option value="">— nadie asignado —</option>
@@ -154,19 +162,15 @@ export function SlotEditor({
                       setRows({ ...rows, [m!.user_id]: { ...rows[m!.user_id], servings: Number(e.target.value) } })
                     }
                   />
-                  <Select
-                    value={rows[m!.user_id]?.recipe_id ?? ''}
-                    onChange={(e) =>
-                      setRows({ ...rows, [m!.user_id]: { ...rows[m!.user_id], recipe_id: e.target.value || null } })
+                  <Picker
+                    value={recipeName(rows[m!.user_id]?.recipe_id ?? null)}
+                    placeholder="misma receta"
+                    items={recipeItems}
+                    clearLabel="misma receta"
+                    onSelect={(id) =>
+                      setRows({ ...rows, [m!.user_id]: { ...rows[m!.user_id], recipe_id: id } })
                     }
-                  >
-                    <option value="">misma receta</option>
-                    {recipes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </Select>
+                  />
                 </div>
               ))}
             </fieldset>

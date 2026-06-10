@@ -5,6 +5,7 @@ import { useHousehold } from '../hooks/useHousehold'
 import { Button } from './ui/Button'
 import { Input, Select, Textarea } from './ui/Field'
 import { Banner } from './ui/Banner'
+import { Picker, type PickerItem } from './ui/Picker'
 import type { Ingredient, Recipe, RecipeIngredient, SeasonTag } from '../types/db'
 
 const ALL_TAGS = ['desayuno', 'rapida', 'sin-horno', 'horno', 'veggie', 'ensalada', 'guiso', 'fiambrera', 'batch', 'dulce']
@@ -51,6 +52,12 @@ export function RecipeForm({
   )
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const ingredientItems: PickerItem[] = ingredients.map((i) => ({
+    id: String(i.id),
+    label: i.name,
+    sublabel: i.default_unit,
+  }))
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -136,14 +143,21 @@ export function RecipeForm({
 
       <fieldset className="border-brutal-thin flex flex-col gap-2 p-3">
         <legend className="px-1 text-xs font-bold uppercase">Ingredientes (cantidades totales)</legend>
-        <datalist id="rf-ingredients">
-          {ingredients.map((i) => (
-            <option key={i.id} value={i.name} />
-          ))}
-        </datalist>
         {draft.map((l, idx) => (
           <div key={idx} className="grid grid-cols-[1fr_5rem_5rem_2.5rem] gap-2">
-            <Input list="rf-ingredients" value={l.name} placeholder="ingrediente" onChange={(e) => setDraft(draft.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)))} />
+            <Picker
+              value={l.name}
+              placeholder="ingrediente..."
+              items={ingredientItems}
+              onSelect={(id) => {
+                const ing = ingredients.find((x) => String(x.id) === id)
+                setDraft(
+                  draft.map((x, i) =>
+                    i === idx ? { ...x, name: ing?.name ?? '', unit: ing?.default_unit ?? x.unit } : x,
+                  ),
+                )
+              }}
+            />
             <Input type="number" step="any" min={0} value={l.quantity} placeholder="cant." onChange={(e) => setDraft(draft.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)))} />
             <Select value={l.unit} onChange={(e) => setDraft(draft.map((x, i) => (i === idx ? { ...x, unit: e.target.value } : x)))}>
               {UNITS.map((u) => (

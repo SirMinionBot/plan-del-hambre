@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { pushSupported, getCurrentSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
+import { Picker } from '../components/ui/Picker'
 import { useAuth } from '../hooks/useAuth'
 import { useHousehold } from '../hooks/useHousehold'
 import { PersonMark } from '../components/ui/Tag'
@@ -14,7 +15,6 @@ function ExcludedIngredients() {
   const uid = session!.user.id
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [excluded, setExcluded] = useState<UserExcludedIngredient[]>([])
-  const [search, setSearch] = useState('')
 
   async function load() {
     const [{ data: ing }, { data: exc }] = await Promise.all([
@@ -30,12 +30,8 @@ function ExcludedIngredients() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid])
 
-  async function add(e: FormEvent) {
-    e.preventDefault()
-    const ing = ingredients.find((i) => i.name === search.trim().toLowerCase())
-    if (!ing) return
-    await supabase.from('user_excluded_ingredients').insert({ user_id: uid, ingredient_id: ing.id })
-    setSearch('')
+  async function add(ingredientId: number) {
+    await supabase.from('user_excluded_ingredients').insert({ user_id: uid, ingredient_id: ingredientId })
     void load()
   }
 
@@ -48,15 +44,16 @@ function ExcludedIngredients() {
     <section className="border-brutal shadow-brutal flex flex-col gap-3 bg-white p-6">
       <h2>Esto no como</h2>
       <p className="text-sm">Alergias y manías. Ninguna receta con estos ingredientes será sugerida.</p>
-      <form onSubmit={add} className="flex gap-2">
-        <Input list="ingredient-names" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ingrediente..." />
-        <datalist id="ingredient-names">
-          {ingredients.map((i) => (
-            <option key={i.id} value={i.name} />
-          ))}
-        </datalist>
-        <Button type="submit">Vetar</Button>
-      </form>
+      <Picker
+        value=""
+        placeholder="vetar ingrediente..."
+        items={ingredients
+          .filter((i) => !excluded.some((e) => e.ingredient_id === i.id))
+          .map((i) => ({ id: String(i.id), label: i.name }))}
+        onSelect={(id) => {
+          if (id) void add(Number(id))
+        }}
+      />
       <ul className="flex flex-wrap gap-2">
         {excluded.map((e) => {
           const ing = ingredients.find((i) => i.id === e.ingredient_id)
