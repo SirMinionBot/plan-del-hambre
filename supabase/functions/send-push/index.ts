@@ -95,6 +95,48 @@ async function expiryNotifications(): Promise<Notification[]> {
   return out
 }
 
+/** Noche antes: recetas de mañana con ingredientes típicamente congelados. */
+async function defrostNotifications(): Promise<Notification[]> {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const { data: entries } = await supabase
+    .from('meal_entries')
+    .select('household_id, recipe_id')
+    .eq('date', isoDate(tomorrow))
+    .in('entry_type', ['normal'])
+    .not('recipe_id', 'is', null)
+
+  const out: Notification[] = []
+  const byHousehold = new Map<string, string[]>()
+  for (const e of entries ?? []) {
+    const { data: frozen } = await supabase
+      .from('recipe_ingredients')
+      .select('ingredients!inner(name, typically_frozen)')
+      .eq('recipe_id', e.recipe_id)
+      .eq('ingredients.typically_frozen', true)
+    const names = (frozen ?? []).map(
+      (f: { ingredients: { name: string } | { name: string }[] }) =>
+        Array.isArray(f.ingredients) ? f.ingredients[0]?.name : f.ingredients.name,
+    )
+    if (names.length) {
+      byHousehold.set(e.household_id, [...new Set([...(byHousehold.get(e.household_id) ?? []), ...names])])
+    }
+  }
+  for (const [householdId, names] of byHousehold) {
+    const { data: members } = await supabase
+      .from('household_members')
+      .select('user_id')
+      .eq('household_id', householdId)
+    out.push({
+      userIds: (members ?? []).map((m) => m.user_id),
+      title: 'SACA DEL CONGELADOR',
+      body: `Mañana toca: ${names.join(', ')}. Al frigo esta noche.`,
+      url: '/',
+    })
+  }
+  return out
+}
+
 async function send(notifications: Notification[]): Promise<{ sent: number; dropped: number }> {
   let sent = 0
   let dropped = 0
@@ -123,9 +165,15 @@ async function send(notifications: Notification[]): Promise<{ sent: number; drop
 Deno.serve(async (req) => {
   const { type } = (await req.json().catch(() => ({}))) as { type?: string }
   const notifications =
-    type === 'weekly-plan' ? await weeklyPlanNotifications() : type === 'expiry' ? await expiryNotifications() : null
+    type === 'weekly-plan'
+      ? await weeklyPlanNotifications()
+      : type === 'expiry'
+        ? await expiryNotifications()
+        : type === 'defrost'
+          ? await defrostNotifications()
+          : null
   if (!notifications) {
-    return new Response(JSON.stringify({ error: 'type debe ser weekly-plan o expiry' }), { status: 400 })
+    return new Response(JSON.stringify({ error: 'type debe ser weekly-plan, expiry o defrost' }), { status: 400 })
   }
   const result = await send(notifications)
   return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } })

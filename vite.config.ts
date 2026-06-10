@@ -34,6 +34,12 @@ export default defineConfig(() => {
             { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
             { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
+          // mantener pulsado el icono → accesos directos
+          shortcuts: [
+            { name: 'La compra', url: `${base}compra`, icons: [{ src: 'pwa-192.png', sizes: '192x192' }] },
+            { name: 'Planificar semana', url: `${base}planificar`, icons: [{ src: 'pwa-192.png', sizes: '192x192' }] },
+            { name: 'Despensa', url: `${base}despensa`, icons: [{ src: 'pwa-192.png', sizes: '192x192' }] },
+          ],
         },
       }),
     ],

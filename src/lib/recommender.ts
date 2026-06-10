@@ -30,7 +30,12 @@ export const WEIGHTS = {
   contextoSlot: 12,
   /** Bonus por cada ítem de despensa a punto de caducar que la receta aprovecha. */
   caducidad: 15,
+  /** Modo semana barata: puntos por cada € por ración por debajo/encima de la referencia. */
+  coste: 8,
 }
+
+/** € por ración de referencia para el componente de coste (modo semana barata). */
+const COSTE_REFERENCIA = 2.5
 
 export interface ScoreComponent {
   key: string
@@ -56,6 +61,10 @@ export interface PlannerContext {
   calorieGoals: Record<string, number>
   plannedCaloriesByUser: Record<string, number>
   macrosByRecipe: Map<string, MacrosPerServing>
+  /** Modo semana barata: activa el componente de coste. */
+  budgetMode?: boolean
+  /** € por ración por receta (estimado de ingredientes); requerido si budgetMode. */
+  costByRecipe?: Map<string, number>
 }
 
 export interface SlotInfo {
@@ -253,6 +262,19 @@ function caducidadComponent(recipe: Recipe, slot: SlotInfo, ctx: PlannerContext)
   )
 }
 
+function costeComponent(recipe: Recipe, ctx: PlannerContext): ScoreComponent | null {
+  // Solo en modo semana barata y con coste conocido para la receta.
+  if (!ctx.budgetMode) return null
+  const costePorRacion = ctx.costByRecipe?.get(recipe.id)
+  if (costePorRacion == null || !Number.isFinite(costePorRacion)) return null
+  const delta = COSTE_REFERENCIA - costePorRacion
+  return component(
+    'coste',
+    `${costePorRacion.toFixed(2)} €/ración (modo barato)`,
+    Math.round(delta * WEIGHTS.coste),
+  )
+}
+
 /** Suma ponderada con desglose explicable de cada componente. */
 export function scoreRecipe(
   recipe: Recipe,
@@ -267,7 +289,8 @@ export function scoreRecipe(
     solapamientoComponent(recipe, ctx),
     contextoComponent(recipe, slot),
     caducidadComponent(recipe, slot, ctx),
-  ]
+    costeComponent(recipe, ctx),
+  ].filter((c): c is ScoreComponent => c !== null)
   const score = breakdown.reduce((sum, c) => sum + c.points, 0)
   return { recipe, score, breakdown }
 }

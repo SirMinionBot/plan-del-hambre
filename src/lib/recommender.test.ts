@@ -285,3 +285,30 @@ describe('planWeek', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 })
+
+describe('modo semana barata', () => {
+  const slot: SlotInfo = { date: '2026-06-15', meal_slot: 'cena', isWeekend: false }
+
+  it('sin budgetMode no aparece componente de coste', () => {
+    const r = makeRecipe({ id: 'cara' })
+    const scored = scoreRecipe(r, slot, makeCtx({ costByRecipe: new Map([['cara', 9]]) }))
+    expect(scored.breakdown.find((c) => c.key === 'coste')).toBeUndefined()
+  })
+
+  it('con budgetMode la barata puntúa por encima de la cara', () => {
+    const barata = makeRecipe({ id: 'lentejas' })
+    const cara = makeRecipe({ id: 'chuleton' })
+    const ctx = makeCtx({
+      budgetMode: true,
+      costByRecipe: new Map([
+        ['lentejas', 1.2],
+        ['chuleton', 7.5],
+      ]),
+    })
+    const sBarata = scoreRecipe(barata, slot, ctx)
+    const sCara = scoreRecipe(cara, slot, ctx)
+    expect(sBarata.score).toBeGreaterThan(sCara.score)
+    expect(sBarata.breakdown.find((c) => c.key === 'coste')!.points).toBeGreaterThan(0)
+    expect(sCara.breakdown.find((c) => c.key === 'coste')!.points).toBeLessThan(0)
+  })
+})

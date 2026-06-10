@@ -17,6 +17,7 @@ export function ShoppingPage() {
   const week = useWeekData(monday)
   const weekStart = toISODate(monday)
   const [listId, setListId] = useState<string | null>(null)
+  const [actualCost, setActualCost] = useState<number | null>(null)
   const [items, setItems] = useState<ShoppingListItem[]>([])
   const [notice, setNotice] = useState<string | null>(null)
   const [loadingList, setLoadingList] = useState(true)
@@ -28,11 +29,12 @@ export function ShoppingPage() {
     setCategories(new Map((cats ?? []).map((c) => [c.id, c.name])))
     const { data: list } = await supabase
       .from('shopping_lists')
-      .select('id')
+      .select('id, actual_cost')
       .eq('household_id', household.id)
       .eq('week_start', weekStart)
       .maybeSingle()
     setListId(list?.id ?? null)
+    setActualCost(list?.actual_cost ?? null)
     if (list) {
       const { data } = await supabase.from('shopping_list_items').select('*').eq('list_id', list.id).order('sort_order')
       setItems(data ?? [])
@@ -190,8 +192,12 @@ export function ShoppingPage() {
       {notice && <Banner variant="error">{notice}</Banner>}
 
       {totalCost > 0 && (
-        <Banner variant="warn">
-          Coste estimado: {totalCost.toFixed(2)} € — aproximado, para comparar semanas
+        <Banner variant={household?.weekly_budget && totalCost > household.weekly_budget ? 'error' : 'warn'}>
+          Coste estimado: {totalCost.toFixed(2)} €
+          {household?.weekly_budget
+            ? ` / presupuesto ${household.weekly_budget.toFixed(0)} € ${totalCost > household.weekly_budget ? '— TE PASAS' : '— dentro'}`
+            : ' — aproximado, para comparar semanas'}
+          {actualCost != null && ` · real (ticket): ${actualCost.toFixed(2)} €`}
         </Banner>
       )}
 

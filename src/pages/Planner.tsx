@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { mondayOf, toISODate, addDays, dayLabel, currentSeason } from '../lib/dates'
-import { macrosPerServing } from '../lib/macros'
+import { macrosPerServing, estimatedCost } from '../lib/macros'
 import {
   planWeek,
   rankForSlot,
@@ -46,6 +46,7 @@ export function PlannerPage() {
   const [data, setData] = useState<PlannerData | null>(null)
   const [templateId, setTemplateId] = useState('')
   const [slotsToPlan, setSlotsToPlan] = useState<MealSlot[]>(['comida', 'cena'])
+  const [budgetMode, setBudgetMode] = useState(false)
   const [proposal, setProposal] = useState<PlannedSlot[] | null>(null)
   const [openBreakdown, setOpenBreakdown] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -134,8 +135,15 @@ export function PlannerPage() {
       ),
       plannedCaloriesByUser,
       macrosByRecipe,
+      budgetMode,
+      costByRecipe: new Map(
+        data.recipes.map((r) => {
+          const total = estimatedCost(linesByRecipe.get(r.id) ?? [], ingredientsById)
+          return [r.id, total == null ? Number.NaN : total / Math.max(r.servings, 1)] as const
+        }),
+      ),
     }
-  }, [data, me, partner, week.entries])
+  }, [data, me, partner, week.entries, budgetMode])
 
   function generate() {
     if (!ctx || !data) return
@@ -241,6 +249,14 @@ export function PlannerPage() {
             </button>
           ))}
         </fieldset>
+        <button
+          type="button"
+          onClick={() => setBudgetMode(!budgetMode)}
+          className={`border-2 border-ink px-2 py-1 text-xs font-bold uppercase ${budgetMode ? 'bg-ink text-paper' : 'bg-white'}`}
+          title="Prioriza recetas baratas (batch, legumbres...)"
+        >
+          € Semana barata
+        </button>
         <Button variant="primary" onClick={generate}>
           Proponer semana
         </Button>

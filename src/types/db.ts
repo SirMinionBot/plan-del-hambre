@@ -12,12 +12,14 @@ export interface Profile {
   protein_goal_g: number | null
   carbs_goal_g: number | null
   fat_goal_g: number | null
+  telegram_link_code: string
 }
 
 export interface Household {
   id: string
   name: string
   invite_code: string
+  weekly_budget: number | null
 }
 
 export interface HouseholdMember {
@@ -45,6 +47,7 @@ export interface Ingredient {
   default_unit: 'g' | 'ml' | 'pieza' | 'cdta' | 'cda' | 'taza'
   grams_per_unit: number | null
   estimated_price_per_100g: number | null
+  typically_frozen: boolean
 }
 
 export interface Recipe {
@@ -119,6 +122,7 @@ export interface ShoppingList {
   id: string
   household_id: string
   week_start: string
+  actual_cost: number | null
 }
 
 export interface ShoppingListItem {

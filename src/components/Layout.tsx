@@ -68,6 +68,23 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
+/** Indicador de sin conexión: la lectura sirve datos cacheados; la escritura fallará. */
+function OfflineBanner() {
+  const [online, setOnline] = useState(navigator.onLine)
+  useEffect(() => {
+    const up = () => setOnline(true)
+    const down = () => setOnline(false)
+    window.addEventListener('online', up)
+    window.addEventListener('offline', down)
+    return () => {
+      window.removeEventListener('online', up)
+      window.removeEventListener('offline', down)
+    }
+  }, [])
+  if (online) return null
+  return <Banner variant="error">Sin conexión — viendo los últimos datos guardados. Los cambios no se guardarán.</Banner>
+}
+
 export function Layout() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
@@ -121,6 +138,7 @@ export function Layout() {
         )}
 
         <main className="flex min-w-0 flex-col gap-4">
+          <OfflineBanner />
           <ExpiryBanner />
           <Outlet />
         </main>

@@ -3,11 +3,38 @@ declare const self: ServiceWorkerGlobalScope
 
 import { clientsClaim } from 'workbox-core'
 import { precacheAndRoute } from 'workbox-precaching'
+import { registerRoute } from 'workbox-routing'
+import { NetworkFirst, CacheFirst } from 'workbox-strategies'
+import { ExpirationPlugin } from 'workbox-expiration'
 
 self.skipWaiting()
 clientsClaim()
 
 precacheAndRoute(self.__WB_MANIFEST)
+
+// Datos de Supabase: red primero, caché como respaldo → la app funciona sin
+// cobertura (sótano del súper) mostrando los últimos datos vistos.
+// Las escrituras (POST/PATCH) no se cachean: fallan offline y la UI lo enseña.
+registerRoute(
+  ({ url, request }) =>
+    url.hostname.endsWith('.supabase.co') &&
+    (url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/auth/v1/user')) &&
+    request.method === 'GET',
+  new NetworkFirst({
+    cacheName: 'supabase-data',
+    networkTimeoutSeconds: 4,
+    plugins: [new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 7 * 24 * 3600 })],
+  }),
+)
+
+// Fuentes de Google: caché primero (no cambian)
+registerRoute(
+  ({ url }) => url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com',
+  new CacheFirst({
+    cacheName: 'fonts',
+    plugins: [new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 365 * 24 * 3600 })],
+  }),
+)
 
 interface PushPayload {
   title?: string

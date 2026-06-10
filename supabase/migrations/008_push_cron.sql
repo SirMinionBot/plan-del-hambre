@@ -43,3 +43,19 @@ select cron.schedule(
   );
   $$
 );
+
+-- Diario 20:00 (UTC): "saca del congelador" si la receta de mañana lo necesita
+select cron.schedule(
+  'push-defrost',
+  '0 20 * * *',
+  $$
+  select net.http_post(
+    url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-push',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer <ANON_KEY>'
+    ),
+    body := '{"type": "defrost"}'::jsonb
+  );
+  $$
+);

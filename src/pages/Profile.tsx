@@ -118,7 +118,12 @@ export function ProfilePage() {
   const { session } = useAuth()
   const { household, me, partner, refresh } = useHousehold()
   const [form, setForm] = useState({ display_name: '', daily_calorie_goal: 2000, protein_goal_g: '', carbs_goal_g: '', fat_goal_g: '' })
+  const [budget, setBudget] = useState('')
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setBudget(household?.weekly_budget?.toString() ?? '')
+  }, [household])
 
   useEffect(() => {
     if (!me) return
@@ -163,6 +168,31 @@ export function ProfilePage() {
             <span className="text-xs font-bold uppercase opacity-60">Esperando a tu pareja...</span>
           )}
         </div>
+        <div className="mt-2 flex flex-wrap items-end gap-2">
+          <Input
+            label="Presupuesto semanal € (vacío = sin límite)"
+            type="number"
+            step="1"
+            min="0"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            className="max-w-44"
+          />
+          <Button
+            onClick={async () => {
+              await supabase
+                .from('households')
+                .update({ weekly_budget: budget ? Number(budget) : null })
+                .eq('id', household!.id)
+              await refresh()
+            }}
+          >
+            Guardar presupuesto
+          </Button>
+        </div>
+        <p className="text-xs font-bold uppercase opacity-60" data-numeric>
+          Telegram: vincula el bot enviándole <span className="bg-warn px-1 normal-case">/start {me?.profile.telegram_link_code}</span>
+        </p>
       </section>
 
       <form onSubmit={save} className="border-brutal shadow-brutal flex flex-col gap-4 bg-white p-6">

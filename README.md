@@ -73,3 +73,25 @@ pnpm test        # vitest (recomendador)
 El proyecto se desarrolla con [OpenSpec](https://github.com/Fission-AI/OpenSpec):
 specs por capability, decisiones de diseño y tareas en
 `openspec/changes/mvp-plan-del-hambre/`.
+
+## Bot de Telegram (opcional)
+
+1. Crea un bot con [@BotFather](https://t.me/BotFather) (`/newbot`) y guarda el token.
+2. Despliega la función y configura los secrets:
+
+```bash
+supabase functions deploy telegram-bot --no-verify-jwt
+supabase secrets set TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=<aleatorio>
+```
+
+3. Registra el webhook (mismo `<aleatorio>` que el secret):
+
+```bash
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+  -d "url=https://<PROJECT_REF>.supabase.co/functions/v1/telegram-bot" \
+  -d "secret_token=<aleatorio>"
+```
+
+4. Vincula tu cuenta: copia el código de Telegram desde tu perfil en la app y
+   mándale al bot `/start <código>`. Después: `hoy`, `mañana`, `compra`,
+   `añade <cosa>`, `marca <cosa>`, `despensa <cosa>`, `ayuda`.
