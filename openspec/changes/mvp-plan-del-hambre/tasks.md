@@ -15,6 +15,7 @@
 - [x] 2.1 Registro/login con Supabase Auth y página de perfil (nombre, objetivos kcal/macros)
 - [x] 2.2 Flujo de hogar: crear hogar, mostrar código, unirse por código, asignación de acento a/b (RPCs `create_household`/`join_household`)
 - [x] 2.3 Hook `useHousehold` (miembro actual, pareja, hogar) y guard de rutas sin hogar
+- [x] 2.5 Recuperación de contraseña: "he olvidado la contraseña" en login (resetPasswordForEmail) + ruta /reset para fijar la nueva (requiere la URL de Pages en Redirect URLs de Supabase)
 - [x] 2.4 Test de RLS con usuarios sintéticos contra el proyecto real (transacción con rollback): aislamiento entre hogares (lectura y escritura), pareja lee ratings pero no los modifica, catálogo global legible y no editable — 9/9 PASS
 
 ## 3. Catálogo de recetas e ingredientes

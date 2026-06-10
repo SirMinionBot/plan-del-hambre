@@ -11,6 +11,7 @@ import { PlannerPage } from './pages/Planner'
 import { ProfilePage } from './pages/Profile'
 import { RecipeDetailPage } from './pages/RecipeDetail'
 import { RecipesPage } from './pages/Recipes'
+import { ResetPasswordPage } from './pages/ResetPassword'
 import { ShoppingPage } from './pages/Shopping'
 import { StatsPage } from './pages/Stats'
 import { TemplatesPage } from './pages/Templates'
@@ -35,6 +36,7 @@ export default function App() {
       <HouseholdProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset" element={<ResetPasswordPage />} />
           <Route element={<RequireAuth />}>
             <Route path="/hogar" element={<HouseholdSetupPage />} />
             <Route element={<RequireHousehold />}>

@@ -9,6 +9,17 @@ Cada miembro de la pareja SHALL tener su propia cuenta (email + contraseña vía
 - **WHEN** un usuario se registra con email y contraseña
 - **THEN** se crea automáticamente su perfil con objetivo calórico por defecto (2000 kcal) editable después
 
+### Requirement: Recuperación de contraseña
+Un usuario SHALL poder solicitar desde la pantalla de entrada un enlace de recuperación por email; el enlace SHALL llevar a una pantalla donde fijar una nueva contraseña y entrar directamente. Un enlace caducado SHALL mostrar un error claro con la opción de pedir otro.
+
+#### Scenario: Recuperar cuenta existente
+- **WHEN** el usuario pulsa "he olvidado la contraseña" con su email escrito
+- **THEN** recibe un correo cuyo enlace abre la pantalla de nueva contraseña y, al guardarla, queda autenticado
+
+#### Scenario: Enlace caducado
+- **WHEN** el usuario abre un enlace de recuperación caducado
+- **THEN** ve "enlace caducado o no válido" y cómo pedir otro, sin pantalla en blanco
+
 ### Requirement: Hogar compartido por código de invitación
 Un usuario sin hogar SHALL poder crear un hogar (quedando como primer miembro) o unirse a uno existente introduciendo su código de invitación de 6 caracteres. Un usuario SHALL pertenecer como máximo a un hogar.
 

@@ -13,6 +13,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
 
   if (session) return <Navigate to="/" replace />
@@ -27,6 +28,19 @@ export function LoginPage() {
         : await supabase.auth.signUp({ email, password, options: { data: { display_name: name } } })
     if (error) setError(error.message)
     setBusy(false)
+  }
+
+  async function forgotPassword() {
+    if (!email) {
+      setError('Escribe tu email arriba y vuelve a pulsar')
+      return
+    }
+    setError(null)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + import.meta.env.BASE_URL + 'reset',
+    })
+    if (error) setError(error.message)
+    else setSent(true)
   }
 
   async function googleLogin() {
@@ -69,9 +83,15 @@ export function LoginPage() {
           required
         />
         {error && <Banner variant="error">{error}</Banner>}
+        {sent && <Banner variant="ok">Enviado — revisa tu correo y sigue el enlace</Banner>}
         <Button variant="primary" type="submit" disabled={busy}>
           {busy ? 'Un momento...' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
         </Button>
+        {mode === 'login' && (
+          <Button variant="ghost" type="button" onClick={forgotPassword} disabled={busy}>
+            He olvidado la contraseña
+          </Button>
+        )}
         <p className="text-center text-xs font-bold uppercase opacity-60">— o —</p>
         <Button type="button" onClick={googleLogin} disabled={busy}>
           Entrar con Google
