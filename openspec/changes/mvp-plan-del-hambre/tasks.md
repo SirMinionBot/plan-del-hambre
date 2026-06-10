@@ -15,7 +15,7 @@
 - [x] 2.1 Registro/login con Supabase Auth y página de perfil (nombre, objetivos kcal/macros)
 - [x] 2.2 Flujo de hogar: crear hogar, mostrar código, unirse por código, asignación de acento a/b (RPCs `create_household`/`join_household`)
 - [x] 2.3 Hook `useHousehold` (miembro actual, pareja, hogar) y guard de rutas sin hogar
-- [ ] 2.4 Test de RLS con dos usuarios sintéticos (aislamiento entre hogares, ratings solo del dueño) — pendiente de aplicar migraciones al proyecto Supabase
+- [x] 2.4 Test de RLS con usuarios sintéticos contra el proyecto real (transacción con rollback): aislamiento entre hogares (lectura y escritura), pareja lee ratings pero no los modifica, catálogo global legible y no editable — 9/9 PASS
 
 ## 3. Catálogo de recetas e ingredientes
 
@@ -73,4 +73,4 @@
 ## 11. Extras
 
 - [x] 11.1 Importador Spoonacular detrás de `VITE_SPOONACULAR_KEY` (buscar, convertir, guardar como receta del hogar `importada`)
-- [ ] 11.2 Verificación final: `pnpm build` limpio ✓, tests ✓ — falta lighthouse PWA y prueba end-to-end con migraciones aplicadas
+- [ ] 11.2 Verificación final: `pnpm build` ✓, tests ✓, migraciones aplicadas en producción ✓ (200 ing / 250 recetas / 4 plantillas), RLS ✓, desplegado en GitHub Pages ✓ — falta lighthouse PWA y prueba manual desde el móvil (crear hogar, invitar, planificar)
