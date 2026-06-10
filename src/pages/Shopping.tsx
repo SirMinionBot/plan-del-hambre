@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { mondayOf, toISODate } from '../lib/dates'
 import { lineGrams } from '../lib/macros'
@@ -17,6 +18,7 @@ export function ShoppingPage() {
   const weekStart = toISODate(monday)
   const [listId, setListId] = useState<string | null>(null)
   const [items, setItems] = useState<ShoppingListItem[]>([])
+  const [notice, setNotice] = useState<string | null>(null)
   const [loadingList, setLoadingList] = useState(true)
   const [categories, setCategories] = useState<Map<number, string>>(new Map())
 
@@ -64,6 +66,14 @@ export function ShoppingPage() {
   /** Genera (o regenera preservando checks) la lista desde el plan semanal. */
   async function generate() {
     if (!household) return
+    setNotice(null)
+
+    // sin comidas planificadas no hay nada que agregar: avisar en vez de callar
+    const plannable = week.entries.filter((e) => e.entry_type === 'normal' && e.recipe_id)
+    if (plannable.length === 0) {
+      setNotice(`La semana del ${weekStart} no tiene comidas planificadas. Ve al calendario y pulsa "Planificar semana" primero.`)
+      return
+    }
     setLoadingList(true)
 
     // agregación: por ingrediente+unidad, escalada a raciones reales; sobras no suman
@@ -177,6 +187,8 @@ export function ShoppingPage() {
         </span>
       </div>
 
+      {notice && <Banner variant="error">{notice}</Banner>}
+
       {totalCost > 0 && (
         <Banner variant="warn">
           Coste estimado: {totalCost.toFixed(2)} € — aproximado, para comparar semanas
@@ -184,7 +196,15 @@ export function ShoppingPage() {
       )}
 
       {items.length === 0 ? (
-        <EmptyState>Sin lista — genera desde el plan semanal</EmptyState>
+        <EmptyState>
+          <span>
+            Sin lista. Primero{' '}
+            <Link to="/planificar" className="underline">
+              planifica la semana
+            </Link>
+            , después genera.
+          </span>
+        </EmptyState>
       ) : (
         byCategory.map(([category, rows]) => (
           <section key={category} className="border-brutal bg-white">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useHousehold } from '../hooks/useHousehold'
 import { Banner } from './ui/Banner'
@@ -45,31 +45,84 @@ function ExpiryBanner() {
   )
 }
 
-export function Layout() {
+function NavList({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <div className="mx-auto min-h-screen max-w-5xl px-3 pb-12">
-      <header className="border-b-4 border-ink py-4">
-        <h1 className="text-2xl font-bold sm:text-4xl">Plan del hambre</h1>
+    <nav className="border-brutal flex flex-col bg-white">
+      {NAV.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            `border-b-2 border-ink px-4 py-3 font-bold uppercase last:border-b-0 ${
+              isActive ? 'bg-ink text-paper' : 'bg-white hover:bg-warn'
+            }`
+          }
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
+export function Layout() {
+  const [open, setOpen] = useState(false)
+  const location = useLocation()
+
+  // cierra el cajón al navegar (por si acaso) y bloquea el scroll de fondo
+  useEffect(() => setOpen(false), [location.pathname])
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
+  return (
+    <div className="mx-auto min-h-screen max-w-6xl px-3 pb-12">
+      <header className="flex items-center justify-between gap-2 border-b-4 border-ink py-4">
+        <h1 className="text-2xl sm:text-4xl">Plan del hambre</h1>
+        <button
+          onClick={() => setOpen(true)}
+          className="border-brutal-thin shadow-brutal-sm press-brutal bg-warn px-3 py-2 font-bold uppercase lg:hidden"
+          aria-label="Abrir menú"
+        >
+          ☰ Menú
+        </button>
       </header>
-      <nav className="mb-6 grid grid-cols-4 border-brutal border-t-0 sm:grid-cols-7">
-        {NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `border-2 border-ink px-1 py-2 text-center text-xs font-bold uppercase sm:text-sm ${
-                isActive ? 'bg-ink text-paper' : 'bg-white hover:bg-warn'
-              }`
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-      <ExpiryBanner />
-      <main className="mt-4">
-        <Outlet />
-      </main>
+
+      <div className="mt-4 lg:grid lg:grid-cols-[13rem_1fr] lg:items-start lg:gap-6">
+        {/* lateral persistente en pantalla grande */}
+        <aside className="sticky top-4 hidden lg:block">
+          <NavList />
+        </aside>
+
+        {/* cajón lateral en móvil */}
+        {open && (
+          <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-ink/60" onClick={() => setOpen(false)} />
+            <div className="absolute inset-y-0 left-0 flex w-64 flex-col gap-3 border-r-4 border-ink bg-paper p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-bold uppercase">Menú</span>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="border-brutal-thin shadow-brutal-sm press-brutal bg-white px-3 py-1 font-bold"
+                  aria-label="Cerrar menú"
+                >
+                  ✕
+                </button>
+              </div>
+              <NavList onNavigate={() => setOpen(false)} />
+            </div>
+          </div>
+        )}
+
+        <main className="flex min-w-0 flex-col gap-4">
+          <ExpiryBanner />
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }
