@@ -163,6 +163,11 @@ async function send(notifications: Notification[]): Promise<{ sent: number; drop
 }
 
 Deno.serve(async (req) => {
+  // Desplegada con --no-verify-jwt (la anon key sb_publishable_ no es JWT):
+  // se protege con secret propio que solo conoce pg_cron.
+  if (req.headers.get('x-push-secret') !== Deno.env.get('PUSH_CRON_SECRET')) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+  }
   const { type } = (await req.json().catch(() => ({}))) as { type?: string }
   const notifications =
     type === 'weekly-plan'

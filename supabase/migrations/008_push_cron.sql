@@ -5,9 +5,10 @@
 --   supabase functions deploy send-push
 --   supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:tu@email
 --
--- Las llamadas usan el anon key (la función no expone datos, solo dispara envíos
--- con service role internamente). Sustituye <PROJECT_REF> y <ANON_KEY> antes de
--- ejecutar, o lanza este bloque desde el SQL Editor del dashboard.
+-- La función se despliega con --no-verify-jwt y se protege con un secret propio
+-- (PUSH_CRON_SECRET, también como secret de la Edge Function). Sustituye
+-- <PROJECT_REF> y <PUSH_SECRET> antes de ejecutar. Nota: las claves nuevas
+-- sb_publishable_ no son JWT, por eso no sirve el header Authorization aquí.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
@@ -21,7 +22,7 @@ select cron.schedule(
     url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer <ANON_KEY>'
+      'x-push-secret', '<PUSH_SECRET>'
     ),
     body := '{"type": "weekly-plan"}'::jsonb
   );
@@ -37,7 +38,7 @@ select cron.schedule(
     url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer <ANON_KEY>'
+      'x-push-secret', '<PUSH_SECRET>'
     ),
     body := '{"type": "expiry"}'::jsonb
   );
@@ -53,7 +54,7 @@ select cron.schedule(
     url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer <ANON_KEY>'
+      'x-push-secret', '<PUSH_SECRET>'
     ),
     body := '{"type": "defrost"}'::jsonb
   );
