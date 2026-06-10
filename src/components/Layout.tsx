@@ -6,7 +6,8 @@ import { Banner } from './ui/Banner'
 import type { PantryItem } from '../types/db'
 
 const NAV = [
-  { to: '/', label: 'Calendario' },
+  { to: '/', label: 'Hoy' },
+  { to: '/calendario', label: 'Calendario' },
   { to: '/recetas', label: 'Recetas' },
   { to: '/compra', label: 'Compra' },
   { to: '/despensa', label: 'Despensa' },
@@ -52,6 +53,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         <NavLink
           key={item.to}
           to={item.to}
+          end={item.to === '/'}
           onClick={onNavigate}
           className={({ isActive }) =>
             `border-b-2 border-ink px-4 py-3 font-bold uppercase last:border-b-0 ${

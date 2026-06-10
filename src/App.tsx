@@ -4,6 +4,7 @@ import { Layout } from './components/Layout'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { HouseholdProvider, useHousehold } from './hooks/useHousehold'
 import { CalendarPage } from './pages/Calendar'
+import { CalibratePage } from './pages/Calibrate'
 import { HouseholdSetupPage } from './pages/HouseholdSetup'
 import { LoginPage } from './pages/Login'
 import { PantryPage } from './pages/Pantry'
@@ -15,6 +16,7 @@ import { ResetPasswordPage } from './pages/ResetPassword'
 import { ShoppingPage } from './pages/Shopping'
 import { StatsPage } from './pages/Stats'
 import { TemplatesPage } from './pages/Templates'
+import { TodayPage } from './pages/Today'
 
 function RequireAuth() {
   const { session, loading } = useAuth()
@@ -41,7 +43,9 @@ export default function App() {
             <Route path="/hogar" element={<HouseholdSetupPage />} />
             <Route element={<RequireHousehold />}>
               <Route element={<Layout />}>
-                <Route path="/" element={<CalendarPage />} />
+                <Route path="/" element={<TodayPage />} />
+                <Route path="/calendario" element={<CalendarPage />} />
+                <Route path="/calibrar" element={<CalibratePage />} />
                 <Route path="/planificar" element={<PlannerPage />} />
                 <Route path="/recetas" element={<RecipesPage />} />
                 <Route path="/recetas/:id" element={<RecipeDetailPage />} />

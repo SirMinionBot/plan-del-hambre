@@ -7,6 +7,7 @@ import { useHousehold, accentBg } from '../hooks/useHousehold'
 import { useWeekData } from '../hooks/useWeekData'
 import { Button } from '../components/ui/Button'
 import { Loading } from '../components/ui/Banner'
+import { QuickRating } from '../components/QuickRating'
 import { SlotEditor } from '../components/SlotEditor'
 import type { MealEntry, MealSlot } from '../types/db'
 
@@ -17,6 +18,7 @@ export function CalendarPage() {
   const [monday, setMonday] = useState(() => mondayOf(new Date()))
   const week = useWeekData(monday)
   const [editing, setEditing] = useState<{ date: string; slot: MealSlot } | null>(null)
+  const [rating, setRating] = useState<{ id: string; name: string } | null>(null)
 
   const entryAt = (date: string, slot: MealSlot) =>
     week.entries.find((e) => e.date === date && e.meal_slot === slot)
@@ -44,11 +46,16 @@ export function CalendarPage() {
   }
 
   async function markCooked(entry: MealEntry) {
+    const marking = !entry.cooked_at
     await supabase
       .from('meal_entries')
-      .update({ cooked_at: entry.cooked_at ? null : new Date().toISOString() })
+      .update({ cooked_at: marking ? new Date().toISOString() : null })
       .eq('id', entry.id)
-    void week.reload()
+    await week.reload()
+    if (marking && entry.recipe_id) {
+      const recipe = week.recipesById.get(entry.recipe_id)
+      if (recipe) setRating({ id: recipe.id, name: recipe.name })
+    }
   }
 
   if (week.loading) return <Loading />
@@ -147,6 +154,7 @@ export function CalendarPage() {
           }}
         />
       )}
+      {rating && <QuickRating recipeId={rating.id} recipeName={rating.name} onClose={() => setRating(null)} />}
       <p className="text-xs font-bold uppercase opacity-60">
         Click en una celda para editar · siguiente semana con → · sobras se colocan solas al planificar
       </p>

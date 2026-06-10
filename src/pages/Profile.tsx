@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { pushSupported, getCurrentSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import { Picker } from '../components/ui/Picker'
@@ -182,6 +183,9 @@ export function ProfilePage() {
         <Button variant="primary" type="submit">
           Guardar
         </Button>
+        <Link to="/calibrar" className="text-center text-xs font-bold uppercase underline">
+          Calibrar mis gustos (2 min) →
+        </Link>
       </form>
 
       <ExcludedIngredients />

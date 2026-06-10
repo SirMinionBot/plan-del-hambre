@@ -31,8 +31,19 @@ Cada entrada de tipo `normal` o `sobras` SHALL poder asignar qué miembro cocina
 - **THEN** la cabecera del calendario muestra el balance 4-2 con los colores de cada persona
 
 ### Requirement: Marcado de cocinada
-Una entrada SHALL poder marcarse como cocinada (`cooked_at`), alimentando el histórico de rachas y top de recetas.
+Una entrada SHALL poder marcarse como cocinada (`cooked_at`), alimentando el histórico de rachas y top de recetas. Al marcarla, la aplicación SHALL ofrecer una valoración exprés de la receta (1-5, descartable) que se guarda como rating del miembro que la marca.
 
 #### Scenario: Marcar cocinada
 - **WHEN** un miembro marca la cena de hoy como cocinada
-- **THEN** la entrada queda fechada y cuenta para las estadísticas del hogar
+- **THEN** la entrada queda fechada, cuenta para las estadísticas del hogar y aparece la pregunta "¿repetiríamos?" con valoración 1-5 descartable
+
+### Requirement: Vista de hoy como inicio
+La pantalla inicial SHALL mostrar el día actual: las tres comidas con receta, tipo, cocinero, raciones por miembro y botón de marcar cocinada, más el total de kcal del día por persona frente a su objetivo. Si la semana está vacía SHALL ofrecer planificarla directamente.
+
+#### Scenario: Día planificado
+- **WHEN** un miembro abre la app un día con comidas planificadas
+- **THEN** ve las tres comidas de hoy con quién cocina y puede marcar cocinada sin pasar por el calendario
+
+#### Scenario: Semana vacía
+- **WHEN** un miembro abre la app con la semana sin planificar
+- **THEN** la vista de hoy le lleva con un botón directo a la planificación

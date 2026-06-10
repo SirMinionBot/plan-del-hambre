@@ -71,6 +71,12 @@
 - [x] 10.2 Suscripción push desde perfil + tabla push_subscriptions; fallback a banners si se deniega
 - [x] 10.3 Edge Function `send-push` (web-push + VAPID) y SQL de programación pg_cron (`008_push_cron.sql`) — falta desplegar y poner secrets (acción del usuario)
 
+## 12. Iteración 2 (feedback de uso real)
+
+- [x] 12.1 Valoración exprés "¿repetiríamos?" (1-5, descartable) al marcar cocinada, en Hoy y Calendario
+- [x] 12.2 Calibración speed-dating: ~24 recetas variadas por ingrediente principal con veto/meh/sí/favorita + aviso en Hoy con <10 valoraciones + enlace en perfil
+- [x] 12.3 Pantalla HOY como inicio (comidas del día, cocinero, raciones, kcal vs objetivo, CTA planificar si vacía); calendario pasa a /calendario
+
 ## 11. Extras
 
 - [x] 11.3 Picker buscable a pantalla completa (filtro sin tildes, texto libre opcional) en lugar de select/datalist para recetas e ingredientes: SlotEditor (receta + divergentes), RecipeForm (con unidad por defecto), exclusiones del perfil y despensa
