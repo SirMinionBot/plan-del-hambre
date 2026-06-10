@@ -29,6 +29,15 @@ export function LoginPage() {
     setBusy(false)
   }
 
+  async function googleLogin() {
+    setError(null)
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + import.meta.env.BASE_URL },
+    })
+    if (error) setError(error.message)
+  }
+
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
       <h1 className="text-4xl">Plan del hambre</h1>
@@ -62,6 +71,10 @@ export function LoginPage() {
         {error && <Banner variant="error">{error}</Banner>}
         <Button variant="primary" type="submit" disabled={busy}>
           {busy ? 'Un momento...' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+        </Button>
+        <p className="text-center text-xs font-bold uppercase opacity-60">— o —</p>
+        <Button type="button" onClick={googleLogin} disabled={busy}>
+          Entrar con Google
         </Button>
       </form>
     </div>

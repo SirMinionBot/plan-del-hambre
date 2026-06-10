@@ -25,8 +25,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title ?? 'PLAN DEL HAMBRE', {
       body: payload.body ?? '',
-      icon: '/pwa-192.png',
-      badge: '/pwa-192.png',
+      icon: 'pwa-192.png', // relativo al scope (funciona en raíz y en /plan-del-hambre/)
+      badge: 'pwa-192.png',
       data: { url: payload.url ?? '/' },
     }),
   )
