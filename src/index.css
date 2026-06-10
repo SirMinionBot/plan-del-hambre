@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/*
+ * PLAN DEL HAMBRE — sistema de diseño brutalista
+ *
+ * Reglas del sistema:
+ *  - Una sola familia tipográfica (monospace), titulares en mayúsculas.
+ *  - Fondo papel, tinta negra, un color de acento agresivo por persona.
+ *  - Bordes negros gruesos, cero border-radius, sombras duras desplazadas.
+ *  - Los botones se "hunden" al pulsar (translate + sombra a 0).
+ */
+
+@theme {
+  --font-sans: "Space Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-mono: "Space Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: #f4f1ea;
+  --color-ink: #000000;
+  --color-person-a: #ff3b00;
+  --color-person-b: #0033ff;
+  --color-warn: #ffd500;
+  --color-ok: #00a347;
+
+  --radius-*: initial; /* sin esquinas redondeadas en todo el proyecto */
+
+  --shadow-brutal: 4px 4px 0 0 #000000;
+  --shadow-brutal-sm: 2px 2px 0 0 #000000;
+  --shadow-brutal-lg: 8px 8px 0 0 #000000;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+  }
+
+  h1, h2, h3 {
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* números tabulares para macros y calorías */
+  [data-numeric], table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility border-brutal {
+  border: 3px solid var(--color-ink);
+}
+
+@utility border-brutal-thin {
+  border: 2px solid var(--color-ink);
+}
+
+@utility press-brutal {
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  &:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+}
+
+@utility blink-brutal {
+  animation: blink-brutal 1s steps(2, start) infinite;
+}
+
+@keyframes blink-brutal {
+  to {
+    visibility: hidden;
+  }
+}
