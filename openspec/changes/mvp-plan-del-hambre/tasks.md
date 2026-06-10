@@ -80,6 +80,7 @@
 - [x] 13.5 Presupuesto semanal del hogar (perfil) + comparación en compra + modo "semana barata" en el planificador (componente de coste en el recomendador, 12/12 tests)
 - [x] 13.6 Atajos PWA (long-press del icono → Compra / Planificar / Despensa)
 - [x] 13.7 Modo offline: NetworkFirst para datos de Supabase + caché de fuentes + banner de sin conexión (lectura offline; escritura avisa)
+- [x] 13.8 Bot v2 determinista: router de comandos exacto con alias, validación con sintaxis por comando, resolución única-o-lista, y cobertura completa (semana, quien, desmarca/quita, despensa/guarda/gastado/caduca, cocinada, nota/veto/desveto, receta) + setMyCommands
 
 ## 12. Iteración 2 (feedback de uso real)
 

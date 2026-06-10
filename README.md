@@ -93,5 +93,7 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 ```
 
 4. Vincula tu cuenta: copia el código de Telegram desde tu perfil en la app y
-   mándale al bot `/start <código>`. Después: `hoy`, `mañana`, `compra`,
-   `añade <cosa>`, `marca <cosa>`, `despensa <cosa>`, `ayuda`.
+   mándale al bot `/start <código>`. Comandos (con y sin `/`): `hoy`, `manana`,
+   `semana`, `quien`, `compra`, `apunta`, `marca`, `desmarca`, `quita`,
+   `despensa`, `guarda`, `gastado`, `caduca`, `cocinada`, `nota`, `veto`,
+   `desveto`, `receta`, `ayuda`.
