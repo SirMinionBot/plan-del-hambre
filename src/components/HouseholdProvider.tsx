@@ -7,7 +7,7 @@ import type { Accent, Household } from '../types/db'
 type Snapshot = Omit<HouseholdState, 'refresh'>
 
 export function HouseholdProvider({ children }: { children: ReactNode }) {
-  const { session } = useAuth()
+  const { session, loading: authLoading } = useAuth()
   const uid = session?.user.id ?? null
   const [state, setState] = useState<Snapshot>({
     household: null,
@@ -15,6 +15,15 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     partner: null,
     loading: true,
   })
+
+  // al cambiar de usuario (restauración de sesión, login, logout) se vuelve a
+  // "cargando": sin esto, el instante entre que llega la sesión y llega el
+  // hogar enseñaba la página de crear hogar (ajuste durante render con guard)
+  const [prevUid, setPrevUid] = useState(uid)
+  if (prevUid !== uid) {
+    setPrevUid(uid)
+    setState((s) => (s.loading ? s : { ...s, loading: true }))
+  }
 
   // fetch puro: devuelve el snapshot sin tocar estado (los setters van en .then
   // o tras await fuera de efectos)
@@ -58,6 +67,9 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, [fetchSnapshot])
 
   useEffect(() => {
+    // mientras la auth restaura la sesión no sabemos quién es: seguimos en
+    // "cargando" en lugar de concluir en falso que no hay hogar
+    if (authLoading) return
     let cancelled = false
     void fetchSnapshot().then((s) => {
       if (!cancelled) setState(s)
@@ -65,7 +77,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [fetchSnapshot])
+  }, [fetchSnapshot, authLoading])
 
   return <HouseholdContext.Provider value={{ ...state, refresh }}>{children}</HouseholdContext.Provider>
 }

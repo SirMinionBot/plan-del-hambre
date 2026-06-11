@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useHousehold } from '../hooks/useHousehold'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
-import { Banner } from '../components/ui/Banner'
+import { Banner, Loading } from '../components/ui/Banner'
 
 export function HouseholdSetupPage() {
   const { household, loading, refresh } = useHousehold()
@@ -18,7 +18,10 @@ export function HouseholdSetupPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  if (!loading && household) return <Navigate to={back} replace />
+  // pantalla de carga mientras se resuelve el hogar: nada de enseñar el
+  // formulario de crear/unirse a quien ya tiene casa
+  if (loading) return <Loading />
+  if (household) return <Navigate to={back} replace />
 
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>) {
     setBusy(true)
