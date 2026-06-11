@@ -27,21 +27,36 @@ export function PantryPage() {
   const [categories, setCategories] = useState<Map<number, string>>(new Map())
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const load = useCallback(async () => {
-    if (!household) return
+  // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
+  // el efecto y el setState tras desmontar
+  const fetchAll = useCallback(async () => {
+    if (!household) return null
     const [{ data: p }, { data: ing }, { data: cats }] = await Promise.all([
       supabase.from('pantry_items').select('*').eq('household_id', household.id).order('expires_on', { nullsFirst: false }),
       supabase.from('ingredients').select('*').order('name'),
       supabase.from('ingredient_categories').select('id, name'),
     ])
-    setItems(p ?? [])
-    setIngredients(ing ?? [])
-    setCategories(new Map((cats ?? []).map((c) => [c.id, c.name])))
+    return { p, ing, cats }
   }, [household])
 
+  const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
+    if (!d) return
+    setItems(d.p ?? [])
+    setIngredients(d.ing ?? [])
+    setCategories(new Map((d.cats ?? []).map((c) => [c.id, c.name])))
+  }, [])
+
+  const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll])
+
   useEffect(() => {
-    void load()
-  }, [load])
+    let cancelled = false
+    void fetchAll().then((d) => {
+      if (!cancelled) apply(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchAll, apply])
 
   async function add(e: FormEvent) {
     e.preventDefault()

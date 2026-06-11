@@ -16,18 +16,32 @@ export function TemplatesPage() {
   const [saveName, setSaveName] = useState('')
   const [message, setMessage] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
+  // el efecto y el setState tras desmontar
+  const fetchAll = useCallback(async () => {
     const [{ data: t }, { data: s }] = await Promise.all([
       supabase.from('week_templates').select('*').order('name'),
       supabase.from('week_template_slots').select('*'),
     ])
-    setTemplates(t ?? [])
-    setSlots(s ?? [])
+    return { t, s }
   }, [])
 
+  const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
+    setTemplates(d.t ?? [])
+    setSlots(d.s ?? [])
+  }, [])
+
+  const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll])
+
   useEffect(() => {
-    void load()
-  }, [load])
+    let cancelled = false
+    void fetchAll().then((d) => {
+      if (!cancelled) apply(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchAll, apply])
 
   /** Guarda una semana pasada como plantilla: etiquetas y tiempos de lo que se cocinó. */
   async function saveWeekAsTemplate(e: FormEvent) {

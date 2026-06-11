@@ -37,8 +37,9 @@ export function useWeekData(monday: Date): WeekData {
   const from = dates[0]
   const to = dates[6]
 
-  const reload = useCallback(async () => {
-    if (!household) return
+  // fetch puro: devuelve el snapshot sin tocar estado
+  const fetchWeek = useCallback(async (): Promise<Omit<WeekData, 'reload' | 'dates'> | null> => {
+    if (!household) return null
     const { data: entries } = await supabase
       .from('meal_entries')
       .select('*')
@@ -76,20 +77,38 @@ export function useWeekData(monday: Date): WeekData {
       recipeIngredients.set(l.recipe_id, arr)
     }
 
-    setState({
+    return {
       entries: entries ?? [],
       portions: portions ?? [],
       recipesById: new Map((recipes ?? []).map((r) => [r.id, r])),
       recipeIngredients,
       ingredientsById: new Map((ingredients ?? []).map((i) => [i.id, i])),
       loading: false,
-    })
+    }
   }, [household, from, to])
 
+  // al cambiar de semana u hogar, vuelve a "cargando" (ajuste durante render)
+  const weekKey = `${household?.id ?? ''}|${from}`
+  const [prevKey, setPrevKey] = useState(weekKey)
+  if (prevKey !== weekKey) {
+    setPrevKey(weekKey)
+    setState((s) => (s.loading ? s : { ...s, loading: true }))
+  }
+
+  const reload = useCallback(async () => {
+    const snap = await fetchWeek()
+    if (snap) setState(snap)
+  }, [fetchWeek])
+
   useEffect(() => {
-    setState((s) => ({ ...s, loading: true }))
-    void reload()
-  }, [reload])
+    let cancelled = false
+    void fetchWeek().then((snap) => {
+      if (!cancelled && snap) setState(snap)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchWeek])
 
   return { ...state, dates, reload }
 }

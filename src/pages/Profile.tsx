@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { pushSupported, getCurrentSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
@@ -17,19 +17,32 @@ function ExcludedIngredients() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [excluded, setExcluded] = useState<UserExcludedIngredient[]>([])
 
-  async function load() {
+  // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
+  // el efecto y el setState tras desmontar
+  const fetchAll = useCallback(async () => {
     const [{ data: ing }, { data: exc }] = await Promise.all([
       supabase.from('ingredients').select('*').order('name'),
       supabase.from('user_excluded_ingredients').select('*').eq('user_id', uid),
     ])
-    setIngredients(ing ?? [])
-    setExcluded(exc ?? [])
-  }
+    return { ing, exc }
+  }, [uid])
+
+  const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
+    setIngredients(d.ing ?? [])
+    setExcluded(d.exc ?? [])
+  }, [])
+
+  const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll])
 
   useEffect(() => {
-    void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid])
+    let cancelled = false
+    void fetchAll().then((d) => {
+      if (!cancelled) apply(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchAll, apply])
 
   async function add(ingredientId: number) {
     await supabase.from('user_excluded_ingredients').insert({ user_id: uid, ingredient_id: ingredientId })
@@ -117,24 +130,29 @@ function PushSettings() {
 export function ProfilePage() {
   const { session } = useAuth()
   const { household, me, partner, refresh } = useHousehold()
-  const [form, setForm] = useState({ display_name: '', daily_calorie_goal: 2000, protein_goal_g: '', carbs_goal_g: '', fat_goal_g: '' })
-  const [budget, setBudget] = useState('')
+  const formFromMe = (m: typeof me) => ({
+    display_name: m?.profile.display_name ?? '',
+    daily_calorie_goal: m?.profile.daily_calorie_goal ?? 2000,
+    protein_goal_g: m?.profile.protein_goal_g?.toString() ?? '',
+    carbs_goal_g: m?.profile.carbs_goal_g?.toString() ?? '',
+    fat_goal_g: m?.profile.fat_goal_g?.toString() ?? '',
+  })
+  const [form, setForm] = useState(() => formFromMe(me))
+  const [budget, setBudget] = useState(household?.weekly_budget?.toString() ?? '')
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
+  // espejo de los datos del hogar/perfil cuando llegan o se refrescan
+  // (ajuste de estado durante el render, sin efectos)
+  const [prevHousehold, setPrevHousehold] = useState(household)
+  if (prevHousehold !== household) {
+    setPrevHousehold(household)
     setBudget(household?.weekly_budget?.toString() ?? '')
-  }, [household])
-
-  useEffect(() => {
-    if (!me) return
-    setForm({
-      display_name: me.profile.display_name,
-      daily_calorie_goal: me.profile.daily_calorie_goal,
-      protein_goal_g: me.profile.protein_goal_g?.toString() ?? '',
-      carbs_goal_g: me.profile.carbs_goal_g?.toString() ?? '',
-      fat_goal_g: me.profile.fat_goal_g?.toString() ?? '',
-    })
-  }, [me])
+  }
+  const [prevMe, setPrevMe] = useState(me)
+  if (prevMe !== me) {
+    setPrevMe(me)
+    if (me) setForm(formFromMe(me))
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault()

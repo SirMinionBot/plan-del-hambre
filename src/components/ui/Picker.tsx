@@ -46,10 +46,7 @@ export function Picker({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (open) {
-      setQuery('')
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 50)
   }, [open])
 
   const filtered = useMemo(() => {
@@ -70,7 +67,10 @@ export function Picker({
       {label && <span className="mb-1 block text-xs font-bold uppercase">{label}</span>}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setQuery('')
+          setOpen(true)
+        }}
         className="border-brutal-thin w-full bg-white px-3 py-2 text-left"
       >
         {value || <span className="uppercase opacity-40">{placeholder}</span>}

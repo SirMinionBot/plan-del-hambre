@@ -42,24 +42,39 @@ export function RecipeDetailPage() {
   const [editing, setEditing] = useState(isNew)
   const [loading, setLoading] = useState(!isNew)
 
-  const load = useCallback(async () => {
+  // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
+  // el efecto y el setState tras desmontar
+  const fetchAll = useCallback(async () => {
     const [{ data: ing }] = await Promise.all([supabase.from('ingredients').select('*').order('name')])
-    setIngredients(ing ?? [])
-    if (isNew) return
+    if (isNew) return { ing, detail: null }
     const [{ data: r }, { data: l }, { data: rat }] = await Promise.all([
       supabase.from('recipes').select('*').eq('id', id!).single(),
       supabase.from('recipe_ingredients').select('*').eq('recipe_id', id!),
       supabase.from('recipe_ratings').select('*').eq('recipe_id', id!),
     ])
-    setRecipe(r)
-    setLines(l ?? [])
-    setRatings(rat ?? [])
-    setLoading(false)
+    return { ing, detail: { r, l, rat } }
   }, [id, isNew])
 
+  const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
+    setIngredients(d.ing ?? [])
+    if (!d.detail) return
+    setRecipe(d.detail.r)
+    setLines(d.detail.l ?? [])
+    setRatings(d.detail.rat ?? [])
+    setLoading(false)
+  }, [])
+
+  const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll])
+
   useEffect(() => {
-    void load()
-  }, [load])
+    let cancelled = false
+    void fetchAll().then((d) => {
+      if (!cancelled) apply(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchAll, apply])
 
   async function rate(value: { rating?: number; vetoed?: boolean }) {
     const current = ratings.find((r) => r.user_id === uid)

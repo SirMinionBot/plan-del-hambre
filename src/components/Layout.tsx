@@ -98,8 +98,14 @@ export function Layout() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
 
-  // cierra el cajón al navegar (por si acaso) y bloquea el scroll de fondo
-  useEffect(() => setOpen(false), [location.pathname])
+  // cierra el cajón al navegar (ajuste de estado durante el render, sin efecto)
+  const [prevPath, setPrevPath] = useState(location.pathname)
+  if (prevPath !== location.pathname) {
+    setPrevPath(location.pathname)
+    setOpen(false)
+  }
+
+  // bloquea el scroll de fondo mientras el cajón está abierto
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => {

@@ -23,31 +23,51 @@ export function ShoppingPage() {
   const [loadingList, setLoadingList] = useState(true)
   const [categories, setCategories] = useState<Map<number, string>>(new Map())
 
-  const loadList = useCallback(async () => {
-    if (!household) return
+  // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
+  // el efecto y el setState tras desmontar
+  const fetchList = useCallback(async () => {
+    if (!household) return null
     const { data: cats } = await supabase.from('ingredient_categories').select('id, name')
-    setCategories(new Map((cats ?? []).map((c) => [c.id, c.name])))
     const { data: list } = await supabase
       .from('shopping_lists')
       .select('id, actual_cost')
       .eq('household_id', household.id)
       .eq('week_start', weekStart)
       .maybeSingle()
-    setListId(list?.id ?? null)
-    setActualCost(list?.actual_cost ?? null)
-    if (list) {
-      const { data } = await supabase.from('shopping_list_items').select('*').eq('list_id', list.id).order('sort_order')
-      setItems(data ?? [])
-    } else {
-      setItems([])
-    }
-    setLoadingList(false)
+    const items = list
+      ? ((await supabase.from('shopping_list_items').select('*').eq('list_id', list.id).order('sort_order')).data ?? [])
+      : []
+    return { cats, list, items }
   }, [household, weekStart])
 
-  useEffect(() => {
+  const apply = useCallback((d: Awaited<ReturnType<typeof fetchList>>) => {
+    if (!d) return
+    setCategories(new Map((d.cats ?? []).map((c) => [c.id, c.name])))
+    setListId(d.list?.id ?? null)
+    setActualCost(d.list?.actual_cost ?? null)
+    setItems(d.items)
+    setLoadingList(false)
+  }, [])
+
+  const loadList = useCallback(async () => apply(await fetchList()), [apply, fetchList])
+
+  // al cambiar de semana u hogar, vuelve a "cargando" (ajuste durante render)
+  const listKey = `${household?.id ?? ''}|${weekStart}`
+  const [prevKey, setPrevKey] = useState(listKey)
+  if (prevKey !== listKey) {
+    setPrevKey(listKey)
     setLoadingList(true)
-    void loadList()
-  }, [loadList])
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchList().then((d) => {
+      if (!cancelled) apply(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchList, apply])
 
   // checkboxes sincronizados entre los dos móviles
   useEffect(() => {

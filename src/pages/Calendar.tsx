@@ -144,6 +144,7 @@ export function CalendarPage() {
 
       {editing && (
         <SlotEditor
+          key={`${editing.date}-${editing.slot}`}
           date={editing.date}
           slot={editing.slot}
           entry={entryAt(editing.date, editing.slot) ?? null}

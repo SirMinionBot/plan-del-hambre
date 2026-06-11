@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useHousehold } from '../hooks/useHousehold'
@@ -21,18 +21,32 @@ export function RecipesPage() {
   const [maxTime, setMaxTime] = useState('')
   const [showImport, setShowImport] = useState(false)
 
-  async function load() {
+  // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
+  // el efecto y el setState tras desmontar
+  const fetchAll = useCallback(async () => {
     const [{ data: r }, { data: rat }] = await Promise.all([
       supabase.from('recipes').select('*').order('name'),
       supabase.from('recipe_ratings').select('*'),
     ])
-    setRecipes(r ?? [])
-    setRatings(rat ?? [])
-  }
+    return { r, rat }
+  }, [])
+
+  const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
+    setRecipes(d.r ?? [])
+    setRatings(d.rat ?? [])
+  }, [])
+
+  const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll])
 
   useEffect(() => {
-    void load()
-  }, [])
+    let cancelled = false
+    void fetchAll().then((d) => {
+      if (!cancelled) apply(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchAll, apply])
 
   const filtered = useMemo(() => {
     if (!recipes) return []

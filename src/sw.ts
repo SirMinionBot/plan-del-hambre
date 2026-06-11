@@ -53,7 +53,7 @@ interface PushPayload {
 }
 
 self.addEventListener('push', (event) => {
-  let payload: PushPayload = {}
+  let payload: PushPayload
   try {
     payload = event.data?.json() ?? {}
   } catch {

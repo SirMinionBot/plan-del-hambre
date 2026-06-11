@@ -35,11 +35,21 @@ export function SlotEditor({
   const [cook, setCook] = useState<string>(entry?.cook_user_id ?? '')
   const [pinned, setPinned] = useState(entry?.pinned ?? false)
   const [notes, setNotes] = useState(entry?.notes ?? '')
-  const [rows, setRows] = useState<Record<string, MemberRow>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const members = [me, partner].filter(Boolean)
+
+  // estado inicial por miembro; el editor se monta con key por celda (Calendar),
+  // así que basta con calcularlo una vez
+  const [rows, setRows] = useState<Record<string, MemberRow>>(() => {
+    const initial: Record<string, MemberRow> = {}
+    for (const m of members) {
+      const p = entry ? week.portions.find((p) => p.entry_id === entry.id && p.user_id === m!.user_id) : null
+      initial[m!.user_id] = { servings: p?.servings ?? 1, recipe_id: p?.recipe_id ?? null }
+    }
+    return initial
+  })
 
   useEffect(() => {
     supabase
@@ -55,16 +65,6 @@ export function SlotEditor({
     sublabel: `${r.prep_minutes + r.cook_minutes} min`,
   }))
   const recipeName = (id: string | null) => recipes.find((r) => r.id === id)?.name ?? ''
-
-  useEffect(() => {
-    const initial: Record<string, MemberRow> = {}
-    for (const m of members) {
-      const p = entry ? week.portions.find((p) => p.entry_id === entry.id && p.user_id === m!.user_id) : null
-      initial[m!.user_id] = { servings: p?.servings ?? 1, recipe_id: p?.recipe_id ?? null }
-    }
-    setRows(initial)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry?.id, me?.user_id, partner?.user_id])
 
   async function save() {
     setBusy(true)
