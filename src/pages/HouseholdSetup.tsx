@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useHousehold } from '../hooks/useHousehold'
 import { Button } from '../components/ui/Button'
@@ -9,12 +9,16 @@ import { Banner } from '../components/ui/Banner'
 export function HouseholdSetupPage() {
   const { household, loading, refresh } = useHousehold()
   const navigate = useNavigate()
+  const location = useLocation()
+  // ruta que provocó el desvío a /hogar; al resolverse el hogar se restaura
+  const from = (location.state as { from?: { pathname: string; search: string } } | null)?.from
+  const back = from ? from.pathname + from.search : '/'
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  if (!loading && household) return <Navigate to="/" replace />
+  if (!loading && household) return <Navigate to={back} replace />
 
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>) {
     setBusy(true)
@@ -26,7 +30,7 @@ export function HouseholdSetupPage() {
       return
     }
     await refresh()
-    navigate('/')
+    navigate(back)
   }
 
   function create(e: FormEvent) {

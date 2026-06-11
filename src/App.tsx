@@ -1,4 +1,4 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { Loading } from './components/ui/Banner'
 import { Layout } from './components/Layout'
 import { AuthProvider } from './components/AuthProvider'
@@ -22,15 +22,19 @@ import { TodayPage } from './pages/Today'
 
 function RequireAuth() {
   const { session, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <Loading />
-  if (!session) return <Navigate to="/login" replace />
+  // state.from: al volver de /login se restaura la ruta original (si no, un
+  // refresh con el token caducado siempre acababa en la raíz)
+  if (!session) return <Navigate to="/login" replace state={{ from: location }} />
   return <Outlet />
 }
 
 function RequireHousehold() {
   const { household, loading } = useHousehold()
+  const location = useLocation()
   if (loading) return <Loading />
-  if (!household) return <Navigate to="/hogar" replace />
+  if (!household) return <Navigate to="/hogar" replace state={{ from: location }} />
   return <Outlet />
 }
 

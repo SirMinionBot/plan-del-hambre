@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Button } from '../components/ui/Button'
@@ -8,6 +8,7 @@ import { Banner } from '../components/ui/Banner'
 
 export function LoginPage() {
   const { session } = useAuth()
+  const location = useLocation()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +17,10 @@ export function LoginPage() {
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  if (session) return <Navigate to="/" replace />
+  // vuelve a la ruta que provocó el desvío a /login (refresh con token
+  // caducado, deep link...); sin ella, a la portada
+  const from = (location.state as { from?: { pathname: string; search: string } } | null)?.from
+  if (session) return <Navigate to={from ? from.pathname + from.search : '/'} replace />
 
   async function submit(e: FormEvent) {
     e.preventDefault()
