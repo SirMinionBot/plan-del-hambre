@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { mondayOf, toISODate } from '../lib/dates'
@@ -12,6 +13,49 @@ import { QuickRating } from '../components/QuickRating'
 import type { MealEntry, MealSlot } from '../types/db'
 
 const SLOTS: MealSlot[] = ['desayuno', 'comida', 'cena']
+
+type Week = ReturnType<typeof useWeekData>
+
+/** retraso de la entrada en cascada (anim-rise) */
+const stagger = (n: number) => ({ '--stagger': n }) as CSSProperties
+
+/** slot "vigente" según la hora: desayuno hasta las 11:30, comida hasta las 16:30 */
+function slotAhora(): MealSlot {
+  const h = new Date().getHours() + new Date().getMinutes() / 60
+  if (h < 11.5) return 'desayuno'
+  if (h < 16.5) return 'comida'
+  return 'cena'
+}
+
+/** count-up con rAF; salta directo al valor con prefers-reduced-motion */
+function useCountUp(target: number, duration = 700) {
+  const [value, setValue] = useState(0)
+  const from = useRef(0)
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const origin = from.current
+    from.current = target
+    const start = performance.now()
+    let raf = 0
+    const tick = (t: number) => {
+      const p = reduce ? 1 : Math.min(1, (t - start) / duration)
+      setValue(Math.round(origin + (target - origin) * (1 - (1 - p) ** 3)))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return value
+}
+
+function kcalPorRacion(recipeId: string | null | undefined, week: Week): number | null {
+  if (!recipeId) return null
+  const r = week.recipesById.get(recipeId)
+  if (!r) return null
+  return Math.round(
+    macrosPerServing(r, week.recipeIngredients.get(recipeId) ?? [], week.ingredientsById).calories,
+  )
+}
 
 export function TodayPage() {
   const { session } = useAuth()
@@ -51,6 +95,17 @@ export function TodayPage() {
   const todayEntries = week.entries.filter((e) => e.date === today)
   const weekEmpty = week.entries.length === 0
 
+  // pieza destacada: la primera comida sin cocinar desde el slot vigente;
+  // si todo lo de hoy está hecho, se queda la del slot vigente (estado "✓")
+  const desde = SLOTS.indexOf(slotAhora())
+  const porSlot = (s: MealSlot) => todayEntries.find((e) => e.meal_slot === s)
+  const featured =
+    SLOTS.slice(desde).map(porSlot).find((e) => e && !e.cooked_at) ??
+    SLOTS.map(porSlot).find((e) => e && !e.cooked_at) ??
+    porSlot(slotAhora()) ??
+    todayEntries[0] ??
+    null
+
   const memberKcal = (userId: string) => {
     let kcal = 0
     for (const e of todayEntries) {
@@ -66,41 +121,59 @@ export function TodayPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-2xl">
-          {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </h2>
-        <Link to="/calendario" className="text-xs font-bold uppercase underline">
+      {/* cabecera editorial: overline + fecha en Fraunces */}
+      <div className="anim-rise flex flex-wrap items-end justify-between gap-2" style={stagger(0)}>
+        <div>
+          <p className="text-xs uppercase text-ink/50">hoy</p>
+          <h2 className="text-3xl sm:text-4xl">
+            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </h2>
+        </div>
+        <Link to="/calendario" viewTransition className="text-xs font-bold uppercase underline underline-offset-4">
           Ver semana →
         </Link>
       </div>
 
       {myRatingsCount !== null && myRatingsCount < 10 && (
-        <Link to="/calibrar" className="block">
+        <Link to="/calibrar" viewTransition className="anim-rise block" style={stagger(1)}>
           <Banner variant="warn">El recomendador aún no te conoce — calibra tus gustos (2 min) →</Banner>
         </Link>
       )}
 
       {weekEmpty ? (
-        <div className="border-brutal shadow-brutal flex flex-col items-center gap-4 bg-white p-8 text-center">
-          <p className="font-bold uppercase">Semana sin planificar</p>
-          <Link to="/planificar">
+        <div className="anim-rise border-brutal shadow-brutal flex flex-col items-center gap-4 bg-white p-10 text-center" style={stagger(1)}>
+          <p className="text-xs uppercase text-ink/50">semana sin planificar</p>
+          <h3 className="text-2xl">Aún no hay nada en la carta</h3>
+          <Link to="/planificar" viewTransition>
             <Button variant="primary">Planificar semana</Button>
           </Link>
         </div>
+      ) : todayEntries.length === 0 ? (
+        <div className="anim-rise border-brutal shadow-brutal flex flex-col items-center gap-4 bg-white p-10 text-center" style={stagger(1)}>
+          <p className="text-xs uppercase text-ink/50">hoy libre</p>
+          <h3 className="text-2xl">Nada planificado para hoy</h3>
+          <Link to="/calendario" viewTransition>
+            <Button>Abrir el calendario</Button>
+          </Link>
+        </div>
       ) : (
-        SLOTS.map((slot) => {
-          const entry = todayEntries.find((e) => e.meal_slot === slot)
-          return <SlotCard key={slot} slot={slot} entry={entry ?? null} week={week} onCooked={markCooked} />
-        })
+        <>
+          {featured && <FeatureCard entry={featured} week={week} onCooked={markCooked} />}
+
+          {/* el resto del día, como sumario de revista */}
+          <div className="anim-rise border-brutal bg-white px-4" style={stagger(2)}>
+            {SLOTS.filter((s) => porSlot(s)?.id !== featured?.id).map((slot) => (
+              <SlotRow key={slot} slot={slot} entry={porSlot(slot) ?? null} week={week} onCooked={markCooked} />
+            ))}
+          </div>
+        </>
       )}
 
-      {members.length > 0 && (
-        <div className="border-brutal flex items-center justify-around bg-white p-3" data-numeric>
+      {members.length > 0 && !weekEmpty && (
+        <div className="anim-rise border-brutal flex flex-col gap-3 bg-white p-4" style={stagger(3)}>
+          <p className="text-xs uppercase text-ink/50">lo de hoy, en números</p>
           {members.map((m) => (
-            <span key={m!.user_id} className={`font-bold ${accentText[m!.accent]}`}>
-              {m!.profile.display_name}: {memberKcal(m!.user_id)} / {m!.profile.daily_calorie_goal} kcal
-            </span>
+            <KcalBar key={m!.user_id} name={m!.profile.display_name} accent={m!.accent} kcal={memberKcal(m!.user_id)} goal={m!.profile.daily_calorie_goal} />
           ))}
         </div>
       )}
@@ -110,72 +183,137 @@ export function TodayPage() {
   )
 }
 
-function SlotCard({
-  slot,
-  entry,
-  week,
-  onCooked,
-}: {
-  slot: MealSlot
-  entry: MealEntry | null
-  week: ReturnType<typeof useWeekData>
-  onCooked: (e: MealEntry) => void
-}) {
+/** pieza destacada: la próxima comida, en grande y con Fraunces */
+function FeatureCard({ entry, week, onCooked }: { entry: MealEntry; week: Week; onCooked: (e: MealEntry) => void }) {
   const { me, partner } = useHousehold()
   const members = [me, partner].filter(Boolean)
-  const recipe = entry?.recipe_id ? week.recipesById.get(entry.recipe_id) : null
-  const cook = members.find((m) => m?.user_id === entry?.cook_user_id)
+  const recipe = entry.recipe_id ? week.recipesById.get(entry.recipe_id) : null
+  const cook = members.find((m) => m?.user_id === entry.cook_user_id)
+  const kcal = kcalPorRacion(entry.recipe_id, week)
+  const minutos = recipe ? recipe.prep_minutes + recipe.cook_minutes : null
+  const especial = entry.entry_type === 'fuera' || entry.entry_type === 'cheat' || entry.entry_type === 'evento'
 
   return (
-    <section className="border-brutal shadow-brutal bg-white">
-      <div className="flex items-center justify-between border-b-2 border-ink bg-ink px-3 py-1 text-paper">
-        <h3 className="text-sm">{slot}</h3>
+    <section className="anim-rise border-brutal shadow-brutal-lg flex flex-col gap-3 bg-white p-5 sm:p-6" style={stagger(1)}>
+      <p className="flex items-center gap-2 text-xs uppercase text-ink/50">
+        {entry.cooked_at && <span className="anim-pop font-bold text-ok">✓</span>}
+        {entry.meal_slot}
         {cook && (
-          <span className="flex items-center gap-1 text-xs font-bold uppercase">
-            cocina {cook.profile.display_name}
-            <span className={`size-3 border-2 border-paper ${accentBg[cook.accent]}`} />
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-2 p-3">
-        {!entry ? (
-          <p className="text-sm font-bold uppercase opacity-40">— nada planificado —</p>
-        ) : entry.entry_type === 'fuera' || entry.entry_type === 'cheat' || entry.entry_type === 'evento' ? (
-          <p className="bg-ink px-2 py-1 text-center font-bold uppercase text-paper">{entry.entry_type}</p>
-        ) : (
           <>
-            <p className="text-lg font-bold">
-              {entry.entry_type === 'sobras' && <span className="mr-1 bg-warn px-1 text-sm uppercase">sobras</span>}
-              {recipe ? (
-                <Link to={`/recetas/${recipe.id}`} className="underline">
-                  {recipe.name}
-                </Link>
-              ) : (
-                '—'
-              )}
+            <span aria-hidden>·</span>
+            cocina <span className={`font-bold ${accentText[cook.accent]}`}>{cook.profile.display_name}</span>
+          </>
+        )}
+      </p>
+
+      {especial ? (
+        <h3 className="text-3xl capitalize italic sm:text-4xl">{entry.entry_type}</h3>
+      ) : (
+        <>
+          <h3 className={`text-3xl sm:text-4xl ${entry.cooked_at ? 'strike-cooked text-ink/50' : ''}`}>
+            {entry.entry_type === 'sobras' && <span className="mr-2 align-middle font-sans text-sm font-bold uppercase not-italic text-warn">sobras ·</span>}
+            {recipe ? (
+              <Link to={`/recetas/${recipe.id}`} viewTransition>
+                {recipe.name}
+              </Link>
+            ) : (
+              '—'
+            )}
+          </h3>
+
+          {(kcal !== null || minutos !== null) && (
+            <p className="text-sm text-ink/60" data-numeric>
+              {kcal !== null && <>{kcal} kcal/ración</>}
+              {kcal !== null && minutos !== null && ' · '}
+              {minutos !== null && <>{minutos} min</>}
             </p>
+          )}
+
+          <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-ink/10 pt-3">
             {members.map((m) => {
               const p = week.portions.find((x) => x.entry_id === entry.id && x.user_id === m!.user_id)
-              const override = p?.recipe_id ? week.recipesById.get(p.recipe_id) : null
               if (!p) return null
+              const override = p.recipe_id ? week.recipesById.get(p.recipe_id) : null
               return (
                 <p key={m!.user_id} className="flex items-center gap-2 text-sm" data-numeric>
-                  <span className={`size-3 border-2 border-ink ${accentBg[m!.accent]}`} />
+                  <span className={`size-2.5 rounded-full ${accentBg[m!.accent]}`} />
                   {p.servings} ración{p.servings === 1 ? '' : 'es'}
                   {override && <span className="font-bold">→ {override.name}</span>}
                 </p>
               )
             })}
-            <Button
-              variant={entry.cooked_at ? 'default' : 'primary'}
-              onClick={() => onCooked(entry)}
-              className="mt-1"
-            >
-              {entry.cooked_at ? '✓ Cocinada (deshacer)' : '✓ Marcar cocinada'}
-            </Button>
-          </>
-        )}
-      </div>
+          </div>
+
+          <Button variant={entry.cooked_at ? 'default' : 'primary'} onClick={() => onCooked(entry)} className="self-start">
+            {entry.cooked_at ? '✓ Cocinada (deshacer)' : '✓ Marcar cocinada'}
+          </Button>
+        </>
+      )}
     </section>
+  )
+}
+
+/** fila compacta del sumario: slot, plato y kcal alineadas a la derecha */
+function SlotRow({ slot, entry, week, onCooked }: { slot: MealSlot; entry: MealEntry | null; week: Week; onCooked: (e: MealEntry) => void }) {
+  const recipe = entry?.recipe_id ? week.recipesById.get(entry.recipe_id) : null
+  const kcal = kcalPorRacion(entry?.recipe_id, week)
+  const especial = entry && (entry.entry_type === 'fuera' || entry.entry_type === 'cheat' || entry.entry_type === 'evento')
+
+  return (
+    <div className="flex items-center gap-3 border-b border-ink/10 py-3 last:border-b-0">
+      <span className="w-20 shrink-0 text-xs uppercase text-ink/50">{slot}</span>
+
+      {!entry ? (
+        <span className="text-sm text-ink/35">— sin plan —</span>
+      ) : especial ? (
+        <span className="font-display italic">{entry.entry_type}</span>
+      ) : (
+        <>
+          <span className={`min-w-0 truncate font-display text-lg ${entry.cooked_at ? 'strike-cooked text-ink/45' : ''}`}>
+            {entry.entry_type === 'sobras' && <span className="mr-1 font-sans text-xs font-bold uppercase text-warn">sobras</span>}
+            {recipe ? (
+              <Link to={`/recetas/${recipe.id}`} viewTransition>
+                {recipe.name}
+              </Link>
+            ) : (
+              '—'
+            )}
+          </span>
+          <span className="ml-auto shrink-0 text-sm text-ink/55" data-numeric>
+            {kcal !== null ? `${kcal} kcal` : ''}
+          </span>
+          <button
+            onClick={() => onCooked(entry)}
+            aria-label={entry.cooked_at ? `Desmarcar ${slot}` : `Marcar ${slot} cocinada`}
+            className={`press-brutal grid size-8 shrink-0 place-items-center rounded-full border text-sm font-bold ${
+              entry.cooked_at ? 'anim-pop border-ok bg-ok text-white' : 'border-ink/20 text-ink/40'
+            }`}
+          >
+            ✓
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** barra de progreso de kcal por persona, con count-up */
+function KcalBar({ name, accent, kcal, goal }: { name: string; accent: 'a' | 'b'; kcal: number; goal: number }) {
+  const value = useCountUp(kcal)
+  const pct = goal > 0 ? Math.min(100, (kcal / goal) * 100) : 0
+  const over = goal > 0 && kcal > goal
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between text-sm">
+        <span className={`font-bold ${accentText[accent]}`}>{name}</span>
+        <span className={over ? 'font-bold text-person-a' : 'text-ink/60'} data-numeric>
+          {value} / {goal} kcal
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-ink/10">
+        <div className={`anim-bar h-full rounded-full ${accentBg[accent]}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   )
 }

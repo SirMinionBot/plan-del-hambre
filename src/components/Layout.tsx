@@ -62,6 +62,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           key={item.to}
           to={item.to}
           end={item.to === '/'}
+          viewTransition
           onClick={onNavigate}
           className={({ isActive }) =>
             `m-1 rounded-xl px-4 py-2.5 font-bold ${
@@ -154,6 +155,7 @@ export function Layout() {
             key={tab.to}
             to={tab.to}
             end={tab.to === '/'}
+            viewTransition
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${
                 isActive ? 'text-person-b' : 'text-ink/45'
