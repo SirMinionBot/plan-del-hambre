@@ -155,11 +155,11 @@ export function PantryPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2>Despensa</h2>
+        {/* sin `capture`: el selector nativo deja elegir cámara, galería o archivo */}
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0]
