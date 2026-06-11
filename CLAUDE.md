@@ -19,20 +19,25 @@
 - RLS por membresía de hogar (`is_household_member`). Las recetas/plantillas
   con `household_id null` son catálogo global de solo lectura: editar = fork.
 
-## Sistema de diseño (soft UI — estilo Fireart "Custom Workout App")
+## Sistema de diseño (Editorial Gourmet — revista gastronómica)
 
-- Manrope para todo; cifras tabulares (`data-numeric`). Sin mayúsculas en
-  titulares (los micro-labels con clase `uppercase` actúan de overline).
-- Fondo lavanda (`paper #f6f5fb`), texto azul noche (`ink #221c44`), primario
-  violeta (`person-b #7c5cfc`, también acento de la persona B), coral
-  (`person-a #ff7a59`, persona A y peligro). Todo dato de una persona lleva
+- Titulares con serif de display **Fraunces** (`font-display`); cuerpo en
+  **Manrope**; cifras tabulares (`data-numeric`). Sin mayúsculas en titulares;
+  los micro-labels con clase `uppercase` actúan de overline en versalitas
+  espaciadas. Fraunces y Manrope se cargan por `<link>` en `index.html`.
+- Papel cálido (`paper #faf7f2`), texto espresso (`ink #2b2320`), primario
+  oliva (`person-b #5f6f4e`, también acento de la persona B), terracota
+  (`person-a #bf4733`, persona A y peligro). Todo dato de una persona lleva
   su color.
-- Cards muy redondeadas con sombras difusas de color. Las utilidades
-  HEREDAN LOS NOMBRES del sistema brutalista anterior: `border-brutal`
-  (= card radius 1.5rem + borde sutil), `shadow-brutal[-sm|-lg]` (sombras
-  suaves violetas), `press-brutal` (scale al pulsar), `blink-brutal` (pulse).
-  Cambiar la estética = tocar `src/index.css`, no las pantallas.
-- Botón primario: degradado violeta con texto blanco (`variant="primary"`).
+- Cards con reglas hairline finas, radio contenido y casi sin sombra: la
+  profundidad la da el aire, no la elevación. Las utilidades CONSERVAN LOS
+  NOMBRES de estilos anteriores (brutalista → soft UI → editorial):
+  `border-brutal` (= card radius 0.75rem + hairline), `shadow-brutal[-sm|-lg]`
+  (sombras casi imperceptibles), `press-brutal` (scale al pulsar),
+  `blink-brutal` (pulse). Cambiar la estética = tocar `src/index.css`, no las
+  pantallas.
+- Botón primario: oliva sólido con texto blanco (`variant="primary"`,
+  `bg-person-b`).
 
 ## Seeds SQL
 

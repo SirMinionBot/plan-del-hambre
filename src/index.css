@@ -1,30 +1,33 @@
 @import "tailwindcss";
 
 /*
- * PLAN DEL HAMBRE — sistema de diseño "soft UI"
- * (inspirado en Custom Workout App de Fireart: fondo lavanda claro, cards muy
- * redondeadas, sombras difusas de color, violeta como primario y coral de acento)
+ * PLAN DEL HAMBRE — sistema de diseño "Editorial Gourmet"
+ * (estética libro de cocina / revista gastronómica tipo Kinfolk · Bon Appétit:
+ * serif de display Fraunces para titulares, Manrope de cuerpo, paleta de papel
+ * cálido + terracota/oliva, reglas hairline finas, mucho aire y casi sin sombra)
  *
  * Nota: los nombres de tokens y utilidades conservan los del sistema anterior
  * (paper/ink, border-brutal, shadow-brutal...) — cambiar aquí los valores
- * reestiliza toda la app sin tocar las pantallas.
+ * reestiliza toda la app sin tocar las pantallas. Ya van por su tercer estilo
+ * (brutalista → soft UI → editorial); el nombre `*-brutal` es histórico.
  */
 
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Fraunces Fallback", ui-serif, Georgia, serif;
 
-  --color-paper: #f6f5fb;   /* lavanda-blanco de fondo */
-  --color-ink: #221c44;     /* azul noche para texto y chips oscuros */
-  --color-person-a: #ff7a59; /* coral */
-  --color-person-b: #7c5cfc; /* violeta */
-  --color-warn: #ffb648;
-  --color-ok: #2dd4a8;
+  --color-paper: #faf7f2;    /* papel cálido de fondo */
+  --color-ink: #2b2320;      /* espresso para texto y chips oscuros */
+  --color-person-a: #bf4733; /* terracota — persona A y peligro */
+  --color-person-b: #5f6f4e; /* oliva — persona B y primario */
+  --color-warn: #c98a1a;     /* mostaza */
+  --color-ok: #3f7d6a;       /* salvia-teal */
 
-  /* diseño plano: capas por contraste de color, no por sombras */
-  --shadow-brutal: 0 1px 2px rgb(34 28 68 / 0.05);
-  --shadow-brutal-sm: 0 1px 2px rgb(34 28 68 / 0.04);
-  --shadow-brutal-lg: 0 2px 4px rgb(34 28 68 / 0.06);
+  /* editorial: profundidad por reglas finas y aire, sombras casi imperceptibles */
+  --shadow-brutal: 0 1px 2px rgb(43 35 32 / 0.05);
+  --shadow-brutal-sm: 0 1px 1px rgb(43 35 32 / 0.04);
+  --shadow-brutal-lg: 0 4px 16px rgb(43 35 32 / 0.07);
 }
 
 @layer base {
@@ -34,41 +37,53 @@
     font-family: var(--font-sans);
   }
 
+  /* titulares con serif de display Fraunces (optical sizing automático) */
   h1, h2, h3 {
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
   }
+  h1 { font-weight: 600; }
 
   /* números tabulares para macros y calorías */
   [data-numeric], table {
     font-variant-numeric: tabular-nums;
   }
 
-  /* suaviza globalmente los bordes "de tinta" heredados (rejillas, chips) */
-  :where(.border-ink) {
-    border-color: rgb(34 28 68 / 0.12);
+  /* micro-labels en versalitas espaciadas: el overline de revista */
+  :where(.uppercase) {
+    letter-spacing: 0.14em;
+    font-weight: 700;
   }
 
-  /* esquinas amables en todo lo interactivo sin tocar cada pantalla */
+  /* suaviza globalmente los bordes "de tinta" heredados (rejillas, chips) */
+  :where(.border-ink) {
+    border-color: rgb(43 35 32 / 0.14);
+  }
+
+  /* esquinas sobrias en todo lo interactivo sin tocar cada pantalla */
   :where(button, input, select, textarea) {
-    border-radius: 0.875rem;
+    border-radius: 0.5rem;
   }
 }
 
+/* card editorial: regla hairline + radio contenido, profundidad por aire */
 @utility border-brutal {
-  border: 1px solid rgb(34 28 68 / 0.08);
-  border-radius: 1.25rem;
+  border: 1px solid rgb(43 35 32 / 0.12);
+  border-radius: 0.75rem;
 }
 
 @utility border-brutal-thin {
-  border: 1px solid rgb(34 28 68 / 0.12);
-  border-radius: 0.75rem;
+  border: 1px solid rgb(43 35 32 / 0.14);
+  border-radius: 0.5rem;
 }
 
 @utility press-brutal {
   transition: transform 120ms ease, box-shadow 120ms ease;
   &:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
     box-shadow: none;
   }
 }
