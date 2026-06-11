@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabase'
 import { weekDates } from '../lib/dates'
 import { useHousehold } from './useHousehold'
 import type {
+  CurrentPrice,
   Ingredient,
   MealEntry,
   MealEntryPortion,
   Recipe,
   RecipeIngredient,
+  Supermarket,
 } from '../types/db'
 
 export interface WeekData {
@@ -17,6 +19,8 @@ export interface WeekData {
   recipesById: Map<string, Recipe>
   recipeIngredients: Map<string, RecipeIngredient[]>
   ingredientsById: Map<number, Ingredient>
+  currentPrices: CurrentPrice[]
+  supermarkets: Supermarket[]
   loading: boolean
   reload: () => Promise<void>
 }
@@ -31,6 +35,8 @@ export function useWeekData(monday: Date): WeekData {
     recipesById: new Map(),
     recipeIngredients: new Map(),
     ingredientsById: new Map(),
+    currentPrices: [],
+    supermarkets: [],
     loading: true,
   })
 
@@ -60,15 +66,18 @@ export function useWeekData(monday: Date): WeekData {
       ),
     ]
 
-    const [{ data: recipes }, { data: lines }, { data: ingredients }] = await Promise.all([
-      recipeIds.length
-        ? supabase.from('recipes').select('*').in('id', recipeIds)
-        : Promise.resolve({ data: [] as Recipe[] }),
-      recipeIds.length
-        ? supabase.from('recipe_ingredients').select('*').in('recipe_id', recipeIds)
-        : Promise.resolve({ data: [] as RecipeIngredient[] }),
-      supabase.from('ingredients').select('*'),
-    ])
+    const [{ data: recipes }, { data: lines }, { data: ingredients }, { data: prices }, { data: supers }] =
+      await Promise.all([
+        recipeIds.length
+          ? supabase.from('recipes').select('*').in('id', recipeIds)
+          : Promise.resolve({ data: [] as Recipe[] }),
+        recipeIds.length
+          ? supabase.from('recipe_ingredients').select('*').in('recipe_id', recipeIds)
+          : Promise.resolve({ data: [] as RecipeIngredient[] }),
+        supabase.from('ingredients').select('*'),
+        supabase.from('current_prices').select('*').eq('household_id', household.id),
+        supabase.from('supermarkets').select('*').order('id'),
+      ])
 
     const recipeIngredients = new Map<string, RecipeIngredient[]>()
     for (const l of lines ?? []) {
@@ -83,6 +92,8 @@ export function useWeekData(monday: Date): WeekData {
       recipesById: new Map((recipes ?? []).map((r) => [r.id, r])),
       recipeIngredients,
       ingredientsById: new Map((ingredients ?? []).map((i) => [i.id, i])),
+      currentPrices: prices ?? [],
+      supermarkets: supers ?? [],
       loading: false,
     }
   }, [household, from, to])

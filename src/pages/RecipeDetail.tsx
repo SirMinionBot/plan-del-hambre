@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { macrosPerServing, estimatedCost } from '../lib/macros'
+import { macrosPerServing } from '../lib/macros'
+import { indexPrices, recipeCost } from '../lib/costs'
 import { useAuth } from '../hooks/useAuth'
 import { useHousehold, accentText } from '../hooks/useHousehold'
 import { Button } from '../components/ui/Button'
 import { Loading, Banner } from '../components/ui/Banner'
 import { Tag } from '../components/ui/Tag'
+import { RecipeImage } from '../components/ui/RecipeImage'
 import { RecipeForm } from '../components/RecipeForm'
-import type { Ingredient, Recipe, RecipeIngredient, RecipeRating } from '../types/db'
+import type { CurrentPrice, Ingredient, Recipe, RecipeIngredient, RecipeRating, Supermarket } from '../types/db'
 
 function Stars({ value, onChange }: { value: number | null; onChange?: (v: number) => void }) {
   return (
@@ -39,24 +41,34 @@ export function RecipeDetailPage() {
   const [lines, setLines] = useState<RecipeIngredient[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [ratings, setRatings] = useState<RecipeRating[]>([])
+  const [prices, setPrices] = useState<CurrentPrice[]>([])
+  const [supers, setSupers] = useState<Supermarket[]>([])
   const [editing, setEditing] = useState(isNew)
   const [loading, setLoading] = useState(!isNew)
 
   // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
   // el efecto y el setState tras desmontar
   const fetchAll = useCallback(async () => {
-    const [{ data: ing }] = await Promise.all([supabase.from('ingredients').select('*').order('name')])
-    if (isNew) return { ing, detail: null }
+    const [{ data: ing }, { data: prc }, { data: sup }] = await Promise.all([
+      supabase.from('ingredients').select('*').order('name'),
+      household
+        ? supabase.from('current_prices').select('*').eq('household_id', household.id)
+        : Promise.resolve({ data: [] as CurrentPrice[] }),
+      supabase.from('supermarkets').select('*').order('id'),
+    ])
+    if (isNew) return { ing, prc, sup, detail: null }
     const [{ data: r }, { data: l }, { data: rat }] = await Promise.all([
       supabase.from('recipes').select('*').eq('id', id!).single(),
       supabase.from('recipe_ingredients').select('*').eq('recipe_id', id!),
       supabase.from('recipe_ratings').select('*').eq('recipe_id', id!),
     ])
-    return { ing, detail: { r, l, rat } }
-  }, [id, isNew])
+    return { ing, prc, sup, detail: { r, l, rat } }
+  }, [id, isNew, household])
 
   const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
     setIngredients(d.ing ?? [])
+    setPrices(d.prc ?? [])
+    setSupers(d.sup ?? [])
     if (!d.detail) return
     setRecipe(d.detail.r)
     setLines(d.detail.l ?? [])
@@ -149,7 +161,16 @@ export function RecipeDetailPage() {
   if (!recipe) return <Banner variant="error">Receta no encontrada</Banner>
 
   const macros = macrosPerServing(recipe, lines, ingredientsById)
-  const cost = recipe.estimated_cost ?? estimatedCost(lines, ingredientsById)
+  // coste derivado: precios reales de tickets (el súper más barato) con
+  // fallback al estimado del catálogo — nunca almacenado, como las macros
+  const cost = recipeCost(
+    recipe,
+    lines,
+    ingredientsById,
+    indexPrices(prices),
+    null,
+    supers.map((s) => s.id),
+  )
   const isOwn = recipe.household_id !== null
   const myRating = ratings.find((r) => r.user_id === uid)
   const partnerRating = partner ? ratings.find((r) => r.user_id === partner.user_id) : null
@@ -163,7 +184,8 @@ export function RecipeDetailPage() {
 
       {vetoed && <Banner variant="error">Vetada — no entra en casa</Banner>}
 
-      <div className="border-brutal shadow-brutal bg-white p-6">
+      <div className="border-brutal shadow-brutal overflow-hidden bg-white p-6">
+        <RecipeImage recipe={recipe} className="-mx-6 -mt-6 mb-4 w-[calc(100%+3rem)] sm:aspect-[21/9]" />
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h2 className="text-2xl">{recipe.name}</h2>
           <div className="flex gap-2">
@@ -206,8 +228,17 @@ export function RecipeDetailPage() {
             </tr>
             {cost != null && (
               <tr className="border-2 border-ink">
-                <th className="p-1 text-left uppercase">Coste aprox.</th>
-                <td className="p-1 text-right font-bold">{cost.toFixed(2)} €</td>
+                <th className="p-1 text-left uppercase">
+                  {cost.realCovered > 0 ? 'Coste (tus tickets)' : 'Coste aprox.'}
+                </th>
+                <td className="p-1 text-right font-bold" data-numeric>
+                  {cost.total.toFixed(2)} €
+                  {cost.covered < cost.lines && (
+                    <span className="ml-1 text-xs font-normal opacity-60">
+                      ({cost.covered}/{cost.lines} ingr.)
+                    </span>
+                  )}
+                </td>
               </tr>
             )}
           </tbody>

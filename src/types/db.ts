@@ -100,6 +100,9 @@ export interface MealEntry {
   cooked_at: string | null
   pinned: boolean
   notes: string | null
+  leftover_servings: number // raciones que sobraron al cocinar (0 = nada)
+  frozen: boolean // la sobra se congeló (amplía su ventana de consumo)
+  source_entry_id: string | null // entry_type 'sobras': comida de origen
 }
 
 export interface MealEntryPortion {
@@ -154,6 +157,36 @@ export interface WeekTemplateSlot {
   required_tags: string[]
   excluded_tags: string[]
   max_total_minutes: number | null
+}
+
+export interface Supermarket {
+  id: number
+  name: string
+  slug: string // 'dia' | 'lidl' | 'mercadona'
+}
+
+/** Observación de precio (histórico) por hogar, ingrediente y súper. */
+export interface IngredientPrice {
+  id: string
+  household_id: string
+  ingredient_id: number
+  supermarket_id: number
+  price: number // € por unidad de compra (envase)
+  quantity: number | null // cantidad del envase si se detecta
+  unit: string | null
+  seen_on: string // YYYY-MM-DD
+  source: 'ticket' | 'manual'
+}
+
+/** Fila de la vista current_prices: precio vigente por (ingrediente, súper). */
+export interface CurrentPrice {
+  household_id: string
+  ingredient_id: number
+  supermarket_id: number
+  price: number
+  quantity: number | null
+  unit: string | null
+  seen_on: string
 }
 
 /** Macros por ración, derivadas de los ingredientes de una receta. */

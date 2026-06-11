@@ -6,6 +6,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3'
+import { composeDigest, digestPushBody, digestTelegram } from '../_shared/digest.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -37,31 +38,62 @@ function nextMonday(): Date {
   return d
 }
 
-/** Domingo: hogares con la semana siguiente incompleta (comida+cena = 14 huecos). */
-async function weeklyPlanNotifications(): Promise<Notification[]> {
-  const monday = nextMonday()
-  const sunday = new Date(monday)
-  sunday.setDate(sunday.getDate() + 6)
+interface TelegramMessage {
+  userIds: string[]
+  text: string
+}
 
+/**
+ * Domingo: digest de la semana entrante por hogar (menú, coste, descongelados
+ * del lunes y estado de la compra), por push y Telegram. Si la semana está sin
+ * planificar, se conserva el aviso clásico de "¿planificamos?".
+ */
+async function weeklyDigest(): Promise<{ notifications: Notification[]; telegrams: TelegramMessage[] }> {
+  const monday = isoDate(nextMonday())
   const { data: households } = await supabase.from('households').select('id, household_members(user_id)')
-  const out: Notification[] = []
+  const notifications: Notification[] = []
+  const telegrams: TelegramMessage[] = []
   for (const h of households ?? []) {
-    const { count } = await supabase
-      .from('meal_entries')
-      .select('id', { count: 'exact', head: true })
-      .eq('household_id', h.id)
-      .gte('date', isoDate(monday))
-      .lte('date', isoDate(sunday))
-      .in('meal_slot', ['comida', 'cena'])
-    if ((count ?? 0) >= 14) continue
-    out.push({
-      userIds: h.household_members.map((m: { user_id: string }) => m.user_id),
-      title: '¿PLANIFICAMOS?',
-      body: 'La semana que viene está sin cerrar. Tengo una propuesta lista.',
-      url: '/planificar',
+    const userIds = h.household_members.map((m: { user_id: string }) => m.user_id)
+    const digest = await composeDigest(supabase, h.id, monday, monday)
+    if (digest.planned === 0) {
+      notifications.push({
+        userIds,
+        title: '¿PLANIFICAMOS?',
+        body: 'La semana que viene está sin cerrar. Tengo una propuesta lista.',
+        url: '/planificar',
+      })
+      continue
+    }
+    notifications.push({
+      userIds,
+      title: 'LA SEMANA QUE VIENE',
+      body: digestPushBody(digest),
+      url: '/calendario',
     })
+    telegrams.push({ userIds, text: digestTelegram(digest) })
   }
-  return out
+  return { notifications, telegrams }
+}
+
+/** Envío por Telegram a los chats vinculados de los miembros. */
+async function sendTelegrams(messages: TelegramMessage[]): Promise<number> {
+  const token = Deno.env.get('TELEGRAM_BOT_TOKEN')
+  if (!token || messages.length === 0) return 0
+  let sent = 0
+  for (const m of messages) {
+    const { data: links } = await supabase.from('telegram_links').select('chat_id').in('user_id', m.userIds)
+    for (const link of links ?? []) {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: link.chat_id, text: m.text, parse_mode: 'HTML' }),
+      })
+      if (res.ok) sent++
+      else console.error('telegram falló:', res.status, await res.text())
+    }
+  }
+  return sent
 }
 
 /** Diario: despensa que caduca en <= 2 días, agrupada por hogar en un solo aviso. */
@@ -169,14 +201,16 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
   }
   const { type } = (await req.json().catch(() => ({}))) as { type?: string }
+  if (type === 'weekly-plan') {
+    const { notifications, telegrams } = await weeklyDigest()
+    const result = await send(notifications)
+    const telegramSent = await sendTelegrams(telegrams)
+    return new Response(JSON.stringify({ ...result, telegramSent }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
   const notifications =
-    type === 'weekly-plan'
-      ? await weeklyPlanNotifications()
-      : type === 'expiry'
-        ? await expiryNotifications()
-        : type === 'defrost'
-          ? await defrostNotifications()
-          : null
+    type === 'expiry' ? await expiryNotifications() : type === 'defrost' ? await defrostNotifications() : null
   if (!notifications) {
     return new Response(JSON.stringify({ error: 'type debe ser weekly-plan, expiry o defrost' }), { status: 400 })
   }

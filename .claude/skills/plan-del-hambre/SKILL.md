@@ -25,6 +25,7 @@ dos líneas a su `.env` (NUNCA las escribas tú ni las muestres en la salida).
 | `whoami` | usuario, hogar y household_id (úsalo para verificar conexión) |
 | `recipes:add --file r.json` | crea receta del HOGAR como tu usuario (REST+RLS) |
 | `recipes:seed --file r.json` | siembra el catálogo GLOBAL directo a BD (1 receta o array) |
+| `recipes:photos [--dry-run\|--force\|--limit N]` | rellena `image_url` del catálogo global vía Spoonacular (directo a BD; `--dry-run` lista matches sin escribir; cuota gratuita ~150 llamadas/día) |
 | `recipes:rate <nombre> <1-5>` | puntúa una receta (busca por nombre, exige match único) |
 | `recipes:rate <nombre> --veto` | veto duro ("esto no entra en casa") |
 | `shopping:show [--week YYYY-MM-DD]` | lista de la compra (semana actual por defecto; la semana empieza en lunes) |

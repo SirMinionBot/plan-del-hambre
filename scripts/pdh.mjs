@@ -192,6 +192,154 @@ async function cmdRecipeSeed(args) {
   console.log(`OK ${recipes.length} receta(s) sembradas en el catálogo global: ${recipes.map((r) => r.nombre).join(', ')}`)
 }
 
+// --- recipes:photos ---------------------------------------------------------
+// Spoonacular busca en inglés: traducimos las palabras "con contenido" del
+// nombre y descartamos el resto. La confianza es la fracción traducida; por
+// debajo del umbral no se busca (la UI tiene fallback editorial).
+
+const PHOTO_STOPWORDS = new Set(
+  'de del la el las los en con y a al un una o estilo casera casero rapida rapido expres facil faciles tradicional clasica clasico completa completo nuestra version dia jaen andaluz andaluza jiennense malagueño malagueña cordobes gaditanas britanico british ingles inglesa'.split(' '),
+)
+
+const PHOTO_DICT = {
+  pollo: 'chicken', pavo: 'turkey', ternera: 'beef', cerdo: 'pork', lomo: 'pork loin',
+  pechuga: 'chicken breast', muslos: 'chicken thighs', contramuslos: 'chicken thighs',
+  solomillo: 'pork tenderloin', entrecot: 'steak', costilla: 'pork ribs',
+  albondigas: 'meatballs', hamburguesa: 'burger', hamburguesas: 'burger',
+  salchichas: 'sausages', chorizo: 'chorizo', jamon: 'ham', bacon: 'bacon', panceta: 'bacon',
+  salmon: 'salmon', merluza: 'hake', bacalao: 'cod', atun: 'tuna', dorada: 'sea bream',
+  caballa: 'mackerel', boquerones: 'anchovies', sardinillas: 'sardines',
+  gambas: 'shrimp', langostinos: 'prawns', mejillones: 'mussels', calamares: 'squid',
+  pulpo: 'octopus', marisco: 'seafood', pescado: 'fish', pescaito: 'fried fish',
+  huevo: 'egg', huevos: 'eggs', tortilla: 'spanish omelette', revuelto: 'scrambled eggs',
+  queso: 'cheese', yogur: 'yogurt', tofu: 'tofu',
+  lentejas: 'lentil', garbanzos: 'chickpea', alubias: 'white beans', judias: 'green beans',
+  arroz: 'rice', pasta: 'pasta', espaguetis: 'spaghetti', macarrones: 'macaroni',
+  fideos: 'noodles', noodles: 'noodles', cuscus: 'couscous', quinoa: 'quinoa',
+  gnocchi: 'gnocchi', risotto: 'risotto', lasaña: 'lasagna', canelones: 'cannelloni',
+  pizza: 'pizza', empanada: 'savory pie', quiche: 'quiche', masa: 'pastry',
+  sopa: 'soup', crema: 'cream soup', guiso: 'stew', estofado: 'stew', potaje: 'stew',
+  caldereta: 'stew', marmitako: 'tuna stew', cocido: 'chickpea stew', fideua: 'fideua',
+  paella: 'paella', gazpacho: 'gazpacho', salmorejo: 'salmorejo', ajoblanco: 'ajo blanco',
+  vichyssoise: 'vichyssoise', migas: 'fried breadcrumbs', pipirrana: 'tomato salad',
+  ensalada: 'salad', pipirana: 'tomato salad', remojon: 'orange cod salad',
+  asado: 'roasted', asada: 'roasted', horno: 'baked', plancha: 'grilled',
+  frito: 'fried', fritos: 'fried', salteado: 'stir fry', salteada: 'stir fry', wok: 'stir fry',
+  curry: 'curry', teriyaki: 'teriyaki', yakisoba: 'yakisoba', ramen: 'ramen',
+  thai: 'thai', satay: 'satay', poke: 'poke bowl', bibimbap: 'bibimbap',
+  agridulce: 'sweet and sour', oriental: 'asian', chino: 'chinese', japones: 'japanese',
+  bol: 'bowl', bowl: 'bowl', wrap: 'wrap', wraps: 'wrap', tacos: 'tacos',
+  burritos: 'burrito', fajitas: 'fajitas', quesadillas: 'quesadilla', chili: 'chili',
+  sandwich: 'sandwich', bocadillo: 'sandwich', tosta: 'toast', tostas: 'toast',
+  tostadas: 'toast', pan: 'bread', picatostes: 'croutons',
+  porridge: 'porridge', gachas: 'porridge', avena: 'oatmeal', batido: 'smoothie',
+  tortitas: 'pancakes', torrijas: 'french toast', crumble: 'crumble', pudin: 'bread pudding',
+  bizcocho: 'cake', dulce: 'sweet', desayuno: 'breakfast',
+  patata: 'potato', patatas: 'potatoes', boniato: 'sweet potato', tomate: 'tomato',
+  pimiento: 'pepper', pimientos: 'peppers', cebolla: 'onion', ajo: 'garlic',
+  pepino: 'cucumber', zanahoria: 'carrot', puerro: 'leek', esparragos: 'asparagus',
+  alcachofas: 'artichoke', aguacate: 'avocado', maiz: 'corn', calabaza: 'pumpkin',
+  calabacin: 'zucchini', berenjena: 'eggplant', berenjenas: 'eggplant',
+  brocoli: 'broccoli', coliflor: 'cauliflower', espinacas: 'spinach',
+  champiñones: 'mushroom', setas: 'mushrooms', verduras: 'vegetables', veggie: 'vegetarian',
+  menestra: 'vegetable medley', pisto: 'ratatouille', alboronia: 'ratatouille',
+  endibias: 'endive', rucula: 'arugula', cabra: 'goat cheese', feta: 'feta',
+  mozzarella: 'mozzarella', caprese: 'caprese', cesar: 'caesar', griega: 'greek',
+  platano: 'banana', manzana: 'apple', pera: 'pear', fresas: 'strawberry',
+  naranja: 'orange', limon: 'lemon', piña: 'pineapple', mango: 'mango', kiwi: 'kiwi',
+  granada: 'pomegranate', uvas: 'grapes', datiles: 'dates', pasas: 'raisins',
+  nueces: 'walnuts', almendras: 'almonds', cacahuete: 'peanut', cacahuetes: 'peanut',
+  chocolate: 'chocolate', miel: 'honey', canela: 'cinnamon', jengibre: 'ginger',
+  sesamo: 'sesame', mostaza: 'mustard', pesto: 'pesto', sobras: 'leftovers',
+  kedgeree: 'kedgeree', flamenca: 'eggs flamenco', flamenquines: 'flamenquin',
+  andrajos: 'cod stew', adobo: 'marinated', pepitoria: 'chicken almond stew',
+  carbonara: 'carbonara', boloñesa: 'bolognese', bechamel: 'bechamel',
+  hummus: 'hummus', falafel: 'falafel', dal: 'dal', musaka: 'moussaka',
+}
+
+function buildPhotoQuery(recipe) {
+  const words = (recipe.name ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-zñ\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+  const content = words.filter((w) => !PHOTO_STOPWORDS.has(w))
+  const translated = content.map((w) => PHOTO_DICT[w]).filter(Boolean)
+  const confidence = content.length ? translated.length / content.length : 0
+  // máx. 2 conceptos (los primeros: plato + principal) — queries más largas
+  // casi nunca devuelven resultado en Spoonacular
+  const query = [...new Set(translated.slice(0, 2).join(' ').split(' '))].join(' ')
+  return { query, confidence }
+}
+
+async function cmdRecipePhotos(args) {
+  const dry = args.includes('--dry-run')
+  const force = args.includes('--force')
+  const limit = Number(argValue(args, '--limit') ?? Infinity)
+  const minConfidence = Number(argValue(args, '--min-confidence') ?? 0.5)
+  const key = env.VITE_SPOONACULAR_KEY
+  if (!key) die('falta VITE_SPOONACULAR_KEY en .env')
+
+  const rows = await mgmtQuery(
+    `select id, name from recipes where household_id is null ${force ? '' : 'and image_url is null'} order by name`,
+  )
+  console.log(`${rows.length} recetas ${force ? '(--force: todas)' : 'sin imagen'}`)
+
+  const updates = []
+  const lowConfidence = []
+  const noResult = []
+  const cache = new Map()
+  let calls = 0
+
+  for (const r of rows) {
+    if (updates.length >= limit) break
+    const { query, confidence } = buildPhotoQuery(r)
+    if (!query || confidence < minConfidence) {
+      lowConfidence.push(`${r.name} → "${query}" (${Math.round(confidence * 100)}%)`)
+      continue
+    }
+    let image = cache.get(query)
+    if (image === undefined) {
+      const res = await fetch(
+        `https://api.spoonacular.com/recipes/complexSearch?query=${encodeURIComponent(query)}&number=1&apiKey=${key}`,
+      )
+      calls++
+      if (res.status === 402) {
+        console.error(`AVISO: cuota de Spoonacular agotada tras ${calls} llamadas — re-ejecuta mañana con --only-missing (default)`)
+        break
+      }
+      if (!res.ok) die(`Spoonacular ${res.status}`)
+      const data = await res.json()
+      image = data.results?.[0]?.image ?? null
+      cache.set(query, image)
+    }
+    if (!image) {
+      noResult.push(`${r.name} → "${query}"`)
+      continue
+    }
+    updates.push({ id: r.id, name: r.name, query, image })
+  }
+
+  console.log(`\n${updates.length} matches · ${lowConfidence.length} confianza baja · ${noResult.length} sin resultado · ${calls} llamadas API`)
+  if (lowConfidence.length) console.log(`\nConfianza < ${minConfidence} (quedan con fallback editorial):\n  ${lowConfidence.join('\n  ')}`)
+  if (noResult.length) console.log(`\nSin resultado:\n  ${noResult.join('\n  ')}`)
+
+  if (dry) {
+    console.log('\n--dry-run: nada escrito. Matches propuestos:')
+    for (const u of updates) console.log(`  ${u.name} → ${u.image} (query: "${u.query}")`)
+    return
+  }
+  if (!updates.length) return console.log('Nada que escribir')
+
+  const values = updates.map((u) => `('${u.id}'::uuid, '${u.image.replace(/'/g, "''")}')`).join(',\n  ')
+  await mgmtQuery(
+    `update recipes r set image_url = v.url from (values\n  ${values}\n) as v(id, url) where r.id = v.id and r.household_id is null`,
+  )
+  console.log(`OK ${updates.length} image_url escritas`)
+}
+
 async function getList(session, week, { create = false } = {}) {
   const hid = await myHousehold(session)
   let [list] = await rest(session, `shopping_lists?select=id,week_start&household_id=eq.${hid}&week_start=eq.${week}`)
@@ -306,6 +454,7 @@ const HELP = `pdh — CLI de plan-del-hambre (autenticado como tu usuario, RLS a
   whoami                                   quién soy y mi hogar
   recipes:add --file receta.json          crear receta del HOGAR como tu usuario (REST+RLS)
   recipes:seed --file recetas.json        sembrar catálogo GLOBAL directo a BD (1 receta o array)
+  recipes:photos [--dry-run|--force]      rellenar image_url del catálogo (Spoonacular)
   recipes:rate <nombre> <1-5> [--veto]    puntuar/vetar receta
   shopping:show [--week YYYY-MM-DD]       ver la lista de la compra
   shopping:add <nombre> [cant] [unidad]   añadir ítem (vincula al catálogo si existe)
@@ -324,6 +473,7 @@ const commands = {
   whoami: cmdWhoami,
   'recipes:add': cmdRecipeAdd,
   'recipes:seed': cmdRecipeSeed,
+  'recipes:photos': cmdRecipePhotos,
   'recipes:rate': cmdRecipeRate,
   'shopping:show': cmdShoppingShow,
   'shopping:add': cmdShoppingAdd,

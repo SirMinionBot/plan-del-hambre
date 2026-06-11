@@ -7,7 +7,7 @@ import { Input } from '../components/ui/Field'
 import { Picker } from '../components/ui/Picker'
 import { Banner, EmptyState, Loading } from '../components/ui/Banner'
 import { scanTicketLocally, type TicketResult } from '../lib/ticketOcr'
-import type { Ingredient, PantryItem } from '../types/db'
+import type { Ingredient, PantryItem, Supermarket } from '../types/db'
 
 function daysLeft(expiresOn: string): number {
   const today = new Date()
@@ -23,20 +23,26 @@ export function PantryPage() {
   const [expires, setExpires] = useState('')
   const [scanning, setScanning] = useState<string | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
-  const [ticket, setTicket] = useState<{ result: TicketResult; selected: Record<number, string | null> } | null>(null)
+  const [ticket, setTicket] = useState<{
+    result: TicketResult
+    selected: Record<number, string | null>
+    superId: number | null // súper del ticket (detectado o elegido); null = no guardar precios
+  } | null>(null)
   const [categories, setCategories] = useState<Map<number, string>>(new Map())
+  const [supers, setSupers] = useState<Supermarket[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
   // fetch puro (sin tocar estado) + apply en .then: evita setState síncrono en
   // el efecto y el setState tras desmontar
   const fetchAll = useCallback(async () => {
     if (!household) return null
-    const [{ data: p }, { data: ing }, { data: cats }] = await Promise.all([
+    const [{ data: p }, { data: ing }, { data: cats }, { data: sup }] = await Promise.all([
       supabase.from('pantry_items').select('*').eq('household_id', household.id).order('expires_on', { nullsFirst: false }),
       supabase.from('ingredients').select('*').order('name'),
       supabase.from('ingredient_categories').select('id, name'),
+      supabase.from('supermarkets').select('*').order('id'),
     ])
-    return { p, ing, cats }
+    return { p, ing, cats, sup }
   }, [household])
 
   const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
@@ -44,6 +50,7 @@ export function PantryPage() {
     setItems(d.p ?? [])
     setIngredients(d.ing ?? [])
     setCategories(new Map((d.cats ?? []).map((c) => [c.id, c.name])))
+    setSupers(d.sup ?? [])
   }, [])
 
   const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll])
@@ -95,7 +102,8 @@ export function PantryPage() {
           selected[i] = item.days_to_expiry_guess ? addDays(toISODate(new Date()), item.days_to_expiry_guess) : null
         }
       })
-      setTicket({ result, selected })
+      const superId = supers.find((s) => s.slug === result.supermarket_slug)?.id ?? null
+      setTicket({ result, selected, superId })
     } catch (e) {
       setScanError(e instanceof Error ? e.message : 'Error al escanear')
     }
@@ -115,6 +123,21 @@ export function PantryPage() {
       }
     })
     if (rows.length) await supabase.from('pantry_items').insert(rows)
+    // precios: una observación por línea emparejada con precio, si hay súper
+    if (ticket.superId !== null) {
+      const priceRows = ticket.result.items
+        .filter((i) => i.ingredient_id !== null && i.price !== null && i.price > 0)
+        .map((i) => ({
+          household_id: household!.id,
+          ingredient_id: i.ingredient_id!,
+          supermarket_id: ticket.superId!,
+          price: i.price!,
+          quantity: i.quantity,
+          unit: i.unit,
+          source: 'ticket',
+        }))
+      if (priceRows.length) await supabase.from('ingredient_prices').insert(priceRows)
+    }
     // coste real de la semana actual
     if (ticket.result.total != null) {
       const weekStart = toISODate(mondayOf(new Date()))
@@ -163,6 +186,24 @@ export function PantryPage() {
             {ticket.result.total != null && (
               <Banner variant="warn">Total del ticket: {ticket.result.total.toFixed(2)} € — se guarda como coste real de la semana</Banner>
             )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase opacity-60">Súper</span>
+              <select
+                value={ticket.superId ?? ''}
+                onChange={(e) => setTicket({ ...ticket, superId: e.target.value ? Number(e.target.value) : null })}
+                className="border-2 border-ink bg-white px-2 py-1 text-sm font-bold"
+              >
+                <option value="">no guardar precios</option>
+                {supers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              {ticket.superId !== null && (
+                <span className="text-xs opacity-60">los precios de las líneas reconocidas se guardan</span>
+              )}
+            </div>
             <ul className="flex flex-col gap-2">
               {ticket.result.items.map((item, i) => {
                 const checked = i in ticket.selected
@@ -185,6 +226,23 @@ export function PantryPage() {
                       }}
                       className="flex-1 text-sm"
                     />
+                    {ticket.superId !== null && item.ingredient_id !== null && (
+                      <span className="flex items-center gap-1 text-sm" data-numeric>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.price ?? ''}
+                          onChange={(e) => {
+                            const price = e.target.value === '' ? null : Number(e.target.value)
+                            const items = ticket.result.items.map((x, j) => (j === i ? { ...x, price } : x))
+                            setTicket({ ...ticket, result: { ...ticket.result, items } })
+                          }}
+                          className="max-w-20 text-right text-sm"
+                        />
+                        €
+                      </span>
+                    )}
                     {checked && (
                       <Input
                         type="date"

@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Input, Select } from '../components/ui/Field'
 import { Loading, EmptyState } from '../components/ui/Banner'
 import { Tag } from '../components/ui/Tag'
+import { RecipeImage } from '../components/ui/RecipeImage'
 import { SpoonacularImport } from '../components/SpoonacularImport'
 import { spoonacularKey } from '../lib/supabase'
 import type { Recipe, RecipeRating } from '../types/db'
@@ -101,8 +102,9 @@ export function RecipesPage() {
               <li key={r.id}>
                 <Link
                   to={`/recetas/${r.id}`}
-                  className={`border-brutal shadow-brutal press-brutal flex h-full flex-col gap-2 bg-white p-3 ${vetoed.length ? 'opacity-50' : ''}`}
+                  className={`border-brutal shadow-brutal press-brutal flex h-full flex-col gap-2 overflow-hidden bg-white p-3 ${vetoed.length ? 'opacity-50' : ''}`}
                 >
+                  <RecipeImage recipe={r} className="-mx-3 -mt-3 w-[calc(100%+1.5rem)]" />
                   <p className="font-bold uppercase">
                     {r.name}
                     {vetoed.length > 0 && <span className="ml-2 bg-ink px-1 text-paper">VETADA</span>}

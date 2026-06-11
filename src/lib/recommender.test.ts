@@ -73,6 +73,9 @@ function makeEntry(over: Partial<MealEntry> & { date: string; meal_slot: MealSlo
     cook_user_id: null,
     cooked_at: null,
     pinned: false,
+    leftover_servings: 0,
+    frozen: false,
+    source_entry_id: null,
     notes: null,
     ...over,
   }

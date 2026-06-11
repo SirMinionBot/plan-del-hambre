@@ -16,6 +16,18 @@
   recomendador NO toca red: recibe todo por `PlannerContext`.
 - Nutrición: las macros SIEMPRE se derivan de `recipe_ingredients` ×
   `ingredients` (`src/lib/macros.ts`); no hay kcal almacenadas en recetas.
+- Coste: mismo patrón que las macros — `src/lib/costs.ts` lo deriva de
+  `current_prices` (precios reales de tickets por súper: Día/Lidl/Mercadona,
+  tablas `supermarkets`/`ingredient_prices`) con fallback a
+  `estimated_price_per_100g`; nunca se almacena. El digest (Edge Functions)
+  usa una versión mínima en `supabase/functions/_shared/digest.ts`.
+- Sobras: atributo de la comida cocinada (`meal_entries.leftover_servings`,
+  `frozen`); consumirlas crea una entrada `entry_type='sobras'` con
+  `source_entry_id` y descuenta del origen. Lógica pura en
+  `src/lib/leftovers.ts` (ventana de nevera: 3 días).
+- Fotos del catálogo: `recipes.image_url` se puebla con
+  `node scripts/pdh.mjs recipes:photos` (Spoonacular, `--dry-run` primero);
+  la UI siempre pinta `<RecipeImage>` (fallback editorial, nunca hueco roto).
 - RLS por membresía de hogar (`is_household_member`). Las recetas/plantillas
   con `household_id null` son catálogo global de solo lectura: editar = fork.
 

@@ -2,15 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { mondayOf, toISODate } from '../lib/dates'
+import { addDays, mondayOf, toISODate } from '../lib/dates'
 import { macrosPerServing } from '../lib/macros'
+import { availableLeftovers, suggestFreeze, type AvailableLeftover } from '../lib/leftovers'
 import { useAuth } from '../hooks/useAuth'
 import { useHousehold, accentBg, accentText } from '../hooks/useHousehold'
 import { useWeekData } from '../hooks/useWeekData'
 import { Button } from '../components/ui/Button'
 import { Banner, Loading } from '../components/ui/Banner'
 import { QuickRating } from '../components/QuickRating'
-import type { MealEntry, MealSlot } from '../types/db'
+import { RecipeImage } from '../components/ui/RecipeImage'
+import type { MealEntry, MealSlot, Recipe, RecipeIngredient } from '../types/db'
 
 const SLOTS: MealSlot[] = ['desayuno', 'comida', 'cena']
 
@@ -59,14 +61,56 @@ function kcalPorRacion(recipeId: string | null | undefined, week: Week): number 
 
 export function TodayPage() {
   const { session } = useAuth()
-  const { me, partner } = useHousehold()
+  const { me, partner, household } = useHousehold()
   const [monday] = useState(() => mondayOf(new Date()))
   const week = useWeekData(monday)
   const today = toISODate(new Date())
   const [rating, setRating] = useState<{ id: string; name: string } | null>(null)
   const [myRatingsCount, setMyRatingsCount] = useState<number | null>(null)
+  const [fiambreras, setFiambreras] = useState<{
+    items: AvailableLeftover[]
+    recipesById: Map<string, Recipe>
+    linesByRecipe: Map<string, RecipeIngredient[]>
+  } | null>(null)
 
   const members = [me, partner].filter(Boolean)
+
+  // sobras disponibles: las cocinadas estos días pueden venir de la semana
+  // pasada, así que se consultan aparte del rango de useWeekData
+  useEffect(() => {
+    if (!household) return
+    let cancelled = false
+    void (async () => {
+      const { data: entries } = await supabase
+        .from('meal_entries')
+        .select('*')
+        .eq('household_id', household.id)
+        .gt('leftover_servings', 0)
+        .not('cooked_at', 'is', null)
+        .gte('date', addDays(today, -10))
+      const items = availableLeftovers(entries ?? [], today)
+      const recipeIds = [...new Set(items.map((l) => l.entry.recipe_id).filter(Boolean) as string[])]
+      const [{ data: recipes }, { data: lines }] = await Promise.all([
+        recipeIds.length
+          ? supabase.from('recipes').select('*').in('id', recipeIds)
+          : Promise.resolve({ data: [] as Recipe[] }),
+        recipeIds.length
+          ? supabase.from('recipe_ingredients').select('*').in('recipe_id', recipeIds)
+          : Promise.resolve({ data: [] as RecipeIngredient[] }),
+      ])
+      if (cancelled) return
+      const linesByRecipe = new Map<string, RecipeIngredient[]>()
+      for (const l of lines ?? []) {
+        const arr = linesByRecipe.get(l.recipe_id) ?? []
+        arr.push(l)
+        linesByRecipe.set(l.recipe_id, arr)
+      }
+      setFiambreras({ items, recipesById: new Map((recipes ?? []).map((r) => [r.id, r])), linesByRecipe })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [household, today, week.entries])
 
   useEffect(() => {
     if (!session) return
@@ -88,6 +132,11 @@ export function TodayPage() {
       const recipe = week.recipesById.get(entry.recipe_id)
       if (recipe) setRating({ id: recipe.id, name: recipe.name })
     }
+  }
+
+  async function updateLeftover(entry: MealEntry, patch: { leftover_servings?: number; frozen?: boolean }) {
+    await supabase.from('meal_entries').update(patch).eq('id', entry.id)
+    await week.reload()
   }
 
   if (week.loading) return <Loading />
@@ -140,6 +189,35 @@ export function TodayPage() {
         </Link>
       )}
 
+      {fiambreras && fiambreras.items.length > 0 && (
+        <div className="anim-rise flex flex-col gap-2" style={stagger(1)}>
+          {fiambreras.items.slice(0, 3).map((l) => {
+            const name = l.entry.recipe_id
+              ? (fiambreras.recipesById.get(l.entry.recipe_id)?.name ?? 'una comida')
+              : 'una comida'
+            const freeze = suggestFreeze(
+              l,
+              l.entry.recipe_id ? (fiambreras.linesByRecipe.get(l.entry.recipe_id) ?? []) : [],
+              week.ingredientsById,
+            )
+            return (
+              <Link key={l.entry.id} to="/planificar" viewTransition className="block">
+                <Banner variant={freeze ? 'warn' : 'ok'}>
+                  🥡 Tienes fiambrera de {name} ({l.servings} {l.servings === 1 ? 'ración' : 'raciones'}
+                  {l.entry.frozen
+                    ? ', congelada'
+                    : l.daysLeft === 0
+                      ? ', caduca hoy'
+                      : `, ${l.daysLeft} ${l.daysLeft === 1 ? 'día' : 'días'}`}
+                  )
+                  {freeze && ' — ❄️ congélala si no cae hoy'} →
+                </Banner>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
       {weekEmpty ? (
         <div className="anim-rise border-brutal shadow-brutal flex flex-col items-center gap-4 bg-white p-10 text-center" style={stagger(1)}>
           <p className="text-xs uppercase text-ink/50">semana sin planificar</p>
@@ -158,12 +236,12 @@ export function TodayPage() {
         </div>
       ) : (
         <>
-          {featured && <FeatureCard entry={featured} week={week} onCooked={markCooked} />}
+          {featured && <FeatureCard entry={featured} week={week} onCooked={markCooked} onLeftover={updateLeftover} />}
 
           {/* el resto del día, como sumario de revista */}
           <div className="anim-rise border-brutal bg-white px-4" style={stagger(2)}>
             {SLOTS.filter((s) => porSlot(s)?.id !== featured?.id).map((slot) => (
-              <SlotRow key={slot} slot={slot} entry={porSlot(slot) ?? null} week={week} onCooked={markCooked} />
+              <SlotRow key={slot} slot={slot} entry={porSlot(slot) ?? null} week={week} onCooked={markCooked} onLeftover={updateLeftover} />
             ))}
           </div>
         </>
@@ -183,8 +261,60 @@ export function TodayPage() {
   )
 }
 
+type LeftoverPatch = { leftover_servings?: number; frozen?: boolean }
+
+/** "¿sobró algo?": stepper de 0,5 en 0,5 + congelar, visible al marcar cocinada */
+function LeftoverControl({ entry, onLeftover }: { entry: MealEntry; onLeftover: (e: MealEntry, p: LeftoverPatch) => void }) {
+  const v = entry.leftover_servings
+  const step = (d: number) => onLeftover(entry, { leftover_servings: Math.max(0, v + d) })
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="uppercase text-ink/50">¿sobró algo?</span>
+      <span className="flex items-center gap-1">
+        <button
+          onClick={() => step(-0.5)}
+          disabled={v <= 0}
+          aria-label="media ración menos"
+          className="press-brutal grid size-7 place-items-center border-2 border-ink bg-white font-bold disabled:opacity-30"
+        >
+          −
+        </button>
+        <span className="w-8 text-center font-bold" data-numeric>
+          {v}
+        </span>
+        <button
+          onClick={() => step(0.5)}
+          aria-label="media ración más"
+          className="press-brutal grid size-7 place-items-center border-2 border-ink bg-white font-bold"
+        >
+          +
+        </button>
+      </span>
+      <span className="text-ink/50">raciones</span>
+      {v > 0 && (
+        <button
+          onClick={() => onLeftover(entry, { frozen: !entry.frozen })}
+          className={`press-brutal border-2 border-ink px-2 py-1 font-bold uppercase ${entry.frozen ? 'bg-ink text-paper' : 'bg-white'}`}
+        >
+          {entry.frozen ? '🧊 congelada' : 'congelar'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 /** pieza destacada: la próxima comida, en grande y con Fraunces */
-function FeatureCard({ entry, week, onCooked }: { entry: MealEntry; week: Week; onCooked: (e: MealEntry) => void }) {
+function FeatureCard({
+  entry,
+  week,
+  onCooked,
+  onLeftover,
+}: {
+  entry: MealEntry
+  week: Week
+  onCooked: (e: MealEntry) => void
+  onLeftover: (e: MealEntry, p: LeftoverPatch) => void
+}) {
   const { me, partner } = useHousehold()
   const members = [me, partner].filter(Boolean)
   const recipe = entry.recipe_id ? week.recipesById.get(entry.recipe_id) : null
@@ -194,7 +324,10 @@ function FeatureCard({ entry, week, onCooked }: { entry: MealEntry; week: Week; 
   const especial = entry.entry_type === 'fuera' || entry.entry_type === 'cheat' || entry.entry_type === 'evento'
 
   return (
-    <section className="anim-rise border-brutal shadow-brutal-lg flex flex-col gap-3 bg-white p-5 sm:p-6" style={stagger(1)}>
+    <section className="anim-rise border-brutal shadow-brutal-lg flex flex-col gap-3 overflow-hidden bg-white p-5 sm:p-6" style={stagger(1)}>
+      {recipe && !especial && (
+        <RecipeImage recipe={recipe} className="-mx-5 -mt-5 w-[calc(100%+2.5rem)] sm:-mx-6 sm:-mt-6 sm:aspect-[21/9] sm:w-[calc(100%+3rem)]" />
+      )}
       <p className="flex items-center gap-2 text-xs uppercase text-ink/50">
         {entry.cooked_at && <span className="anim-pop font-bold text-ok">✓</span>}
         {entry.meal_slot}
@@ -247,6 +380,10 @@ function FeatureCard({ entry, week, onCooked }: { entry: MealEntry; week: Week; 
           <Button variant={entry.cooked_at ? 'default' : 'primary'} onClick={() => onCooked(entry)} className="self-start">
             {entry.cooked_at ? '✓ Cocinada (deshacer)' : '✓ Marcar cocinada'}
           </Button>
+
+          {entry.cooked_at && entry.entry_type === 'normal' && (
+            <LeftoverControl entry={entry} onLeftover={onLeftover} />
+          )}
         </>
       )}
     </section>
@@ -254,13 +391,26 @@ function FeatureCard({ entry, week, onCooked }: { entry: MealEntry; week: Week; 
 }
 
 /** fila compacta del sumario: slot, plato y kcal alineadas a la derecha */
-function SlotRow({ slot, entry, week, onCooked }: { slot: MealSlot; entry: MealEntry | null; week: Week; onCooked: (e: MealEntry) => void }) {
+function SlotRow({
+  slot,
+  entry,
+  week,
+  onCooked,
+  onLeftover,
+}: {
+  slot: MealSlot
+  entry: MealEntry | null
+  week: Week
+  onCooked: (e: MealEntry) => void
+  onLeftover: (e: MealEntry, p: LeftoverPatch) => void
+}) {
   const recipe = entry?.recipe_id ? week.recipesById.get(entry.recipe_id) : null
   const kcal = kcalPorRacion(entry?.recipe_id, week)
   const especial = entry && (entry.entry_type === 'fuera' || entry.entry_type === 'cheat' || entry.entry_type === 'evento')
 
   return (
-    <div className="flex items-center gap-3 border-b border-ink/10 py-3 last:border-b-0">
+    <div className="border-b border-ink/10 py-3 last:border-b-0">
+    <div className="flex items-center gap-3">
       <span className="w-20 shrink-0 text-xs uppercase text-ink/50">{slot}</span>
 
       {!entry ? (
@@ -293,6 +443,12 @@ function SlotRow({ slot, entry, week, onCooked }: { slot: MealSlot; entry: MealE
           </button>
         </>
       )}
+    </div>
+    {entry?.cooked_at && entry.entry_type === 'normal' && !especial && (
+      <div className="mt-2 pl-20 sm:pl-23">
+        <LeftoverControl entry={entry} onLeftover={onLeftover} />
+      </div>
+    )}
     </div>
   )
 }

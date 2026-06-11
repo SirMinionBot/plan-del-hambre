@@ -4,7 +4,7 @@ declare const self: ServiceWorkerGlobalScope
 import { clientsClaim } from 'workbox-core'
 import { precacheAndRoute } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
-import { NetworkFirst, CacheFirst } from 'workbox-strategies'
+import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
 self.skipWaiting()
@@ -34,6 +34,17 @@ registerRoute(
   new CacheFirst({
     cacheName: 'ocr-assets',
     plugins: [new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 365 * 24 * 3600 })],
+  }),
+)
+
+// Fotos de recetas (Spoonacular u otros CDN de imagen): stale-while-revalidate
+// → se ven al instante desde caché y se refrescan en segundo plano; el
+// catálogo sigue teniendo cara sin conexión.
+registerRoute(
+  ({ url, request }) => request.destination === 'image' && url.hostname === 'img.spoonacular.com',
+  new StaleWhileRevalidate({
+    cacheName: 'recipe-images',
+    plugins: [new ExpirationPlugin({ maxEntries: 400, maxAgeSeconds: 90 * 24 * 3600 })],
   }),
 )
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { mondayOf, toISODate, addDays, dayLabel, currentSeason } from '../lib/dates'
 import { macrosPerServing, estimatedCost } from '../lib/macros'
+import { compareSupermarkets, indexPrices, weekCost } from '../lib/costs'
 import {
   planWeek,
   rankForSlot,
@@ -145,6 +146,37 @@ export function PlannerPage() {
     }
   }, [data, me, partner, week.entries, budgetMode])
 
+  // coste previsto: comidas ya en calendario + propuesta actual, con precios
+  // reales (el súper más barato por ingrediente) y comparativa entre cadenas
+  const costInfo = useMemo(() => {
+    if (!data) return null
+    const ingredientsById = new Map(data.ingredients.map((i) => [i.id, i]))
+    const linesByRecipe = new Map<string, RecipeIngredient[]>()
+    for (const l of data.lines) {
+      const arr = linesByRecipe.get(l.recipe_id) ?? []
+      arr.push(l)
+      linesByRecipe.set(l.recipe_id, arr)
+    }
+    const recipesById = new Map(data.recipes.map((r) => [r.id, r]))
+    const meals: { recipe: Recipe; lines: RecipeIngredient[] }[] = []
+    for (const e of week.entries) {
+      const r = e.recipe_id ? recipesById.get(e.recipe_id) : null
+      if (r && e.entry_type !== 'sobras') meals.push({ recipe: r, lines: linesByRecipe.get(r.id) ?? [] })
+    }
+    for (const p of proposal ?? []) {
+      if (p.entry_type !== 'sobras') meals.push({ recipe: p.recipe, lines: linesByRecipe.get(p.recipe.id) ?? [] })
+    }
+    if (meals.length === 0) return null
+    const idx = indexPrices(week.currentPrices)
+    const superIds = week.supermarkets.map((s) => s.id)
+    const total = weekCost(meals, ingredientsById, idx, null, superIds)
+    const bySuper = compareSupermarkets(meals, ingredientsById, idx, superIds).map((c) => ({
+      ...c,
+      name: week.supermarkets.find((s) => s.id === c.supermarketId)?.name ?? '?',
+    }))
+    return { total, bySuper }
+  }, [data, week.entries, week.currentPrices, week.supermarkets, proposal])
+
   function generate() {
     if (!ctx || !data) return
     const tplSlots = templateId ? data.templateSlots.filter((s) => s.template_id === templateId) : undefined
@@ -263,6 +295,36 @@ export function PlannerPage() {
       </div>
 
       {pinnedCount > 0 && <Banner variant="warn">{pinnedCount} peticiones ancladas — se respetan</Banner>}
+
+      {costInfo && costInfo.total.coveredMeals > 0 && (
+        <div className="border-brutal shadow-brutal-sm flex flex-wrap items-baseline gap-x-4 gap-y-1 bg-white p-3 text-sm">
+          <span>
+            <span className="text-xs font-bold uppercase opacity-60">Coste previsto </span>
+            <span className="font-bold" data-numeric>
+              {costInfo.total.total.toFixed(2)} €
+            </span>
+            {costInfo.total.coveredMeals < costInfo.total.meals && (
+              <span className="text-xs opacity-60" data-numeric>
+                {' '}
+                ({costInfo.total.coveredMeals}/{costInfo.total.meals} comidas)
+              </span>
+            )}
+            {household?.weekly_budget != null && (
+              <span
+                className={`ml-1 text-xs font-bold uppercase ${costInfo.total.total > household.weekly_budget ? 'text-person-a' : 'text-person-b'}`}
+                data-numeric
+              >
+                / {household.weekly_budget} € presupuesto
+              </span>
+            )}
+          </span>
+          {costInfo.bySuper.length > 1 && (
+            <span className="text-xs opacity-70" data-numeric>
+              {costInfo.bySuper.map((s, i) => `${i === 0 ? '🏆 ' : ''}${s.name} ${s.total.toFixed(2)} €`).join(' · ')}
+            </span>
+          )}
+        </div>
+      )}
 
       {proposal && proposal.length === 0 && <Banner variant="ok">Semana completa — nada que rellenar</Banner>}
 

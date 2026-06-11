@@ -8,6 +8,7 @@
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY las inyecta la plataforma.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { composeDigest, digestTelegram } from '../_shared/digest.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -18,7 +19,6 @@ const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')!
 const WEBHOOK_SECRET = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')!
 
 const SLOT_ORDER = ['desayuno', 'comida', 'cena'] as const
-const DAY_LABELS = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'] as const
 const ENTRY_TYPE_LABEL: Record<string, string> = {
   fuera: 'COMER FUERA',
   cheat: 'CHEAT MEAL',
@@ -323,27 +323,15 @@ async function cmdDia(householdId: string, offsetDays: number): Promise<string> 
 }
 
 /** Semana actual compacta: "LUN: comida / cena". */
+/** Digest de la semana en curso: menú + coste previsto + descongelar mañana. */
 async function cmdSemana(householdId: string): Promise<string> {
   const monday = mondayOf(new Date())
-  const sunday = addDays(monday, 6)
-  const { data: entries } = await supabase
-    .from('meal_entries')
-    .select('date, meal_slot, entry_type, recipes(name)')
-    .eq('household_id', householdId)
-    .gte('date', monday)
-    .lte('date', sunday)
-
-  const lines: string[] = []
-  for (let i = 0; i < 7; i++) {
-    const dayIso = addDays(monday, i)
-    const ofDay = (entries ?? []).filter((e) => e.date === dayIso)
-    const slot = (s: string) => {
-      const e = ofDay.find((x) => x.meal_slot === s)
-      return e ? esc(entryLabel(e)) : '—'
-    }
-    lines.push(`${DAY_LABELS[i]}: ${slot('comida')} / ${slot('cena')}`)
+  const tomorrow = addDays(isoDate(new Date()), 1)
+  const digest = await composeDigest(supabase, householdId, monday, tomorrow)
+  if (digest.planned === 0) {
+    return `<b>SEMANA DEL ${monday}</b>\n\nNada planificado aún. Abre la app y dale a "Proponer semana".`
   }
-  return `<b>SEMANA DEL ${monday}</b>\n\n${lines.join('\n')}`
+  return digestTelegram(digest, 'LA SEMANA')
 }
 
 /** Quién cocina hoy y mañana, por slot. */
