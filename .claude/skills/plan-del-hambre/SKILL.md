@@ -23,7 +23,8 @@ dos líneas a su `.env` (NUNCA las escribas tú ni las muestres en la salida).
 | Comando | Qué hace |
 |---|---|
 | `whoami` | usuario, hogar y household_id (úsalo para verificar conexión) |
-| `recipes:add --file r.json` | crea receta del hogar (JSON también por stdin) |
+| `recipes:add --file r.json` | crea receta del HOGAR como tu usuario (REST+RLS) |
+| `recipes:seed --file r.json` | siembra el catálogo GLOBAL directo a BD (1 receta o array) |
 | `recipes:rate <nombre> <1-5>` | puntúa una receta (busca por nombre, exige match único) |
 | `recipes:rate <nombre> --veto` | veto duro ("esto no entra en casa") |
 | `shopping:show [--week YYYY-MM-DD]` | lista de la compra (semana actual por defecto; la semana empieza en lunes) |
@@ -31,6 +32,18 @@ dos líneas a su `.env` (NUNCA las escribas tú ni las muestres en la salida).
 | `shopping:check <texto>` | marca comprado (substring, case-insensitive; `--all` si hay varios) |
 | `shopping:uncheck <texto>` | desmarca |
 | `shopping:remove <texto>` | elimina de la lista |
+
+## Catálogo global vs hogar
+
+- **`recipes:seed`** va **directo a BD** vía la Management API de Supabase
+  (`SUPABASE_ACCESS_TOKEN` del `.env`): corre como `postgres`, SIN RLS y SIN
+  login de usuario. Inserta en el **catálogo global** (`household_id null`,
+  recetas de solo lectura visibles para todos). Usa esta vía para ampliar el
+  recetario base. Llama a `seed_recipe()` y a `validate_seed_recipes()` dentro
+  de una transacción: o entran todas las recetas del lote o ninguna. Acepta una
+  receta suelta o un **array** de recetas en el JSON.
+- **`recipes:add`** sigue siendo para recetas **del hogar** del usuario (vía
+  REST autenticado, RLS aplica). Úsalo cuando la receta es privada de tu hogar.
 
 ## Crear recetas: reglas
 

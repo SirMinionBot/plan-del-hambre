@@ -51,6 +51,33 @@ async function login() {
   return session
 }
 
+// --- acceso directo a BD (Management API, corre como postgres, sin RLS) -----
+// Sólo para sembrar el catálogo GLOBAL (household_id null) vía seed_recipe.
+// Usa SUPABASE_ACCESS_TOKEN del .env; esquiva el login de usuario.
+const PROJECT_REF = (BASE ?? '').replace(/^https?:\/\//, '').split('.')[0]
+
+async function mgmtQuery(sql) {
+  if (!env.SUPABASE_ACCESS_TOKEN) die('falta SUPABASE_ACCESS_TOKEN en .env (token de la Management API)')
+  if (!PROJECT_REF) die('no pude derivar el project ref de VITE_SUPABASE_URL')
+  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: sql }),
+  })
+  const text = await res.text()
+  const data = text ? JSON.parse(text) : null
+  if (!res.ok) die(`db query → ${res.status}: ${data?.message ?? data?.error ?? text}`)
+  return data
+}
+
+// jsonb literal seguro vía dollar-quoting; elige un tag que no aparezca en el JSON
+function jsonbLiteral(obj) {
+  const json = JSON.stringify(obj)
+  let tag = 'r'
+  while (json.includes(`$${tag}$`)) tag += 'r'
+  return `$${tag}$${json}$${tag}$::jsonb`
+}
+
 async function rest(session, path, { method = 'GET', body, headers = {} } = {}) {
   const res = await fetch(`${BASE}/rest/v1/${path}`, {
     method,
@@ -137,6 +164,32 @@ async function cmdRecipeAdd(args) {
     body: resolved.map((x) => ({ ...x, recipe_id: recipe.id })),
   })
   console.log(`OK receta creada: ${recipe.name} (${recipe.id}) con ${resolved.length} ingredientes`)
+}
+
+async function cmdRecipeSeed(args) {
+  const fileIdx = args.indexOf('--file')
+  const raw = fileIdx >= 0 ? readFileSync(args[fileIdx + 1], 'utf8') : readFileSync(0, 'utf8')
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch (e) {
+    die(`JSON inválido: ${e.message}`)
+  }
+  const recipes = Array.isArray(parsed) ? parsed : [parsed]
+  if (!recipes.length) die('no hay recetas en el JSON')
+  for (const [i, r] of recipes.entries()) {
+    if (!r.nombre || !Array.isArray(r.ingredientes) || r.ingredientes.length === 0) {
+      die(`receta #${i + 1}: necesita {nombre, ingredientes: [{n, q, u?}, ...]} como mínimo`)
+    }
+  }
+
+  // Una transacción por lote: o entran todas o ninguna; seed_recipe ya valida
+  // que cada ingrediente exista (RAISE si no), y validate_seed_recipes la sanidad.
+  const calls = recipes.map((r) => `  perform seed_recipe(${jsonbLiteral(r)});`).join('\n')
+  const sql =
+    `do $pdh$\nbegin\n${calls}\n  perform validate_seed_recipes();\nend\n$pdh$;`
+  await mgmtQuery(sql)
+  console.log(`OK ${recipes.length} receta(s) sembradas en el catálogo global: ${recipes.map((r) => r.nombre).join(', ')}`)
 }
 
 async function getList(session, week, { create = false } = {}) {
@@ -251,7 +304,8 @@ function argValue(args, flag) {
 const HELP = `pdh — CLI de plan-del-hambre (autenticado como tu usuario, RLS aplica)
 
   whoami                                   quién soy y mi hogar
-  recipes:add --file receta.json          crear receta del hogar (o JSON por stdin)
+  recipes:add --file receta.json          crear receta del HOGAR como tu usuario (REST+RLS)
+  recipes:seed --file recetas.json        sembrar catálogo GLOBAL directo a BD (1 receta o array)
   recipes:rate <nombre> <1-5> [--veto]    puntuar/vetar receta
   shopping:show [--week YYYY-MM-DD]       ver la lista de la compra
   shopping:add <nombre> [cant] [unidad]   añadir ítem (vincula al catálogo si existe)
@@ -269,6 +323,7 @@ const [cmd, ...rest_] = process.argv.slice(2)
 const commands = {
   whoami: cmdWhoami,
   'recipes:add': cmdRecipeAdd,
+  'recipes:seed': cmdRecipeSeed,
   'recipes:rate': cmdRecipeRate,
   'shopping:show': cmdShoppingShow,
   'shopping:add': cmdShoppingAdd,
